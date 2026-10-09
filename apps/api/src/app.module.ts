@@ -11,7 +11,9 @@ import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RecoveryModule } from './recovery/recovery.module';
 import { SettingsModule } from './settings/settings.module';
 import { UsersModule } from './users/users.module';
 
@@ -27,6 +29,8 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     MastersModule,
     InvoicesModule,
+    PaymentsModule,
+    RecoveryModule,
     HealthModule,
   ],
   providers: [

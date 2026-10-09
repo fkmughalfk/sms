@@ -19,13 +19,13 @@ import {
   type InvoiceLineInput,
   type InvoicePreview,
   type LineResult,
-  monthRange,
   packWeightKg,
   resolveCommissionRate,
   type Totals,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
 import { invoiceScope } from '../common/data-scope';
+import { dateRangeWhere } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 import type { Db } from '../masters/master.service';
 import { listArgs } from '../masters/master-utils';
@@ -553,8 +553,7 @@ export class InvoicesService {
 
   /** Header filters (spec §5.3) + soft-delete + the user's data scope. */
   private invoiceWhere(user: AuthUser, f: InvoiceFilter): Prisma.InvoiceWhereInput {
-    const range =
-      f.from || f.to ? { from: f.from, to: f.to } : f.month ? monthRange(f.month) : null;
+    const invoiceDate = dateRangeWhere(f);
     const lineFilter: Prisma.InvoiceLineWhereInput = {
       ...(f.productId ? { productId: f.productId } : {}),
       ...(f.categoryId ? { product: { categoryId: f.categoryId } } : {}),
@@ -562,14 +561,7 @@ export class InvoicesService {
     return {
       deletedAt: null,
       ...invoiceScope(user),
-      ...(range
-        ? {
-            invoiceDate: {
-              ...(range.from ? { gte: toDbDate(range.from) } : {}),
-              ...(range.to ? { lte: toDbDate(range.to) } : {}),
-            },
-          }
-        : {}),
+      ...(invoiceDate ? { invoiceDate } : {}),
       ...(f.partyId ? { partyId: f.partyId } : {}),
       ...(f.cityId ? { cityId: f.cityId } : {}),
       ...(f.salespersonId ? { salespersonId: f.salespersonId } : {}),

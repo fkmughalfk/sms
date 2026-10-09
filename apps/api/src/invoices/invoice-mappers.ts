@@ -6,12 +6,12 @@ import {
   type InvoiceRow,
   type InvoiceTotals,
 } from '@sms/shared';
+import { fromDbDate } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 
-// Prisma ⇄ API shapes for invoices. Dates are `@db.Date`: stored as UTC midnight.
+// Prisma ⇄ API shapes for invoices.
 
-export const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
-export const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
+export { fromDbDate, toDbDate } from '../common/db-date';
 
 const ref = { select: { id: true, name: true } } as const;
 

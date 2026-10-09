@@ -17,3 +17,14 @@ export const updateSettingsSchema = z
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
+
+/** `GET /settings` (any signed-in user — company header, rates, targets). */
+export const settingsSchema = z.object({
+  companyName: z.string(),
+  companyAddress: z.string(),
+  defaultCommissionRate: z.string(),
+  annualSalesTarget: z.string(),
+  fiscalYearStartMonth: z.number(),
+  userEditWindowHours: z.number(),
+});
+export type Settings = z.infer<typeof settingsSchema>;

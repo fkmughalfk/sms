@@ -9,8 +9,10 @@ import { HttpExceptionFilter } from './common/http-exception.filter';
 import { PermissionsGuard } from './common/permissions.guard';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
+import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SettingsModule } from './settings/settings.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,9 +22,11 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     PrismaModule,
     AuditModule,
+    SettingsModule,
     AuthModule,
     UsersModule,
     MastersModule,
+    InvoicesModule,
     HealthModule,
   ],
   providers: [

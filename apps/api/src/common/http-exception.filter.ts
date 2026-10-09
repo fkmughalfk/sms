@@ -27,11 +27,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       const response = exception.getResponse();
       if (typeof response === 'string') return { statusCode, message: response };
-      const { message, errors } = response as {
+      // Keep extra fields (e.g. `code`, `invoiceId` on an invoice-number conflict); drop Nest's `error`.
+      const {
+        message,
+        errors,
+        error: _error,
+        statusCode: _status,
+        ...extra
+      } = response as {
         message?: string | string[];
         errors?: ApiError['errors'];
+        error?: string;
+        statusCode?: number;
       };
       return {
+        ...extra,
         statusCode,
         message: Array.isArray(message)
           ? (message[0] ?? exception.message)

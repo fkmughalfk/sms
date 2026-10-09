@@ -30,7 +30,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/invoices',
     icon: FileText,
     permission: 'invoice.read',
-    ready: false,
+    ready: true,
   },
   { label: 'Payments', href: '/payments', icon: Wallet, permission: 'payment.read', ready: false },
   { label: 'Recovery', href: '/recovery', icon: Receipt, permission: 'payment.read', ready: false },

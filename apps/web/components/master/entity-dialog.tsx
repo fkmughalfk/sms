@@ -41,6 +41,7 @@ export function EntityDialog<S extends FormSchema, Row extends { id: string; nam
   onOpenChange,
   defaults,
   description,
+  onSaved,
   children,
 }: {
   /** "city", "product"… */
@@ -55,6 +56,8 @@ export function EntityDialog<S extends FormSchema, Row extends { id: string; nam
   onOpenChange: (open: boolean) => void;
   defaults: (row: Row | null) => z.input<S>;
   description?: ReactNode;
+  /** Called with the saved row (e.g. to select a party created inline). */
+  onSaved?: (row: Row) => void;
   children: (form: UseFormReturn<z.input<S>, unknown, z.output<S>>) => ReactNode;
 }) {
   const isEdit = row !== null;
@@ -77,6 +80,7 @@ export function EntityDialog<S extends FormSchema, Row extends { id: string; nam
     onSuccess: (saved) => {
       toast.success(`${saved.name} ${isEdit ? 'updated' : 'created'}.`);
       void queryClient.invalidateQueries({ queryKey: masterKey(path) });
+      onSaved?.(saved);
       onOpenChange(false);
     },
     onError: (e) => {

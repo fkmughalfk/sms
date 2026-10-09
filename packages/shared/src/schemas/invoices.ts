@@ -1,6 +1,13 @@
 import { z } from 'zod';
 import { dec } from '../calc/decimal';
-import { dateStringSchema, optionalIdSchema, optionalTextSchema } from './common';
+import {
+  dateStringSchema,
+  monthStringSchema,
+  optionalIdSchema,
+  optionalTextSchema,
+  paginatedSchema,
+  paginationQuerySchema,
+} from './common';
 
 // Sales invoice input (spec §5.2). Only user-entered fields: anything calculated
 // (rate/pack, amount, commission, weight, totals, snapshots) is stripped — the server recomputes it.
@@ -117,3 +124,126 @@ export function findDuplicateProducts(lines: readonly { productId: string }[]): 
   }
   return [...dupes];
 }
+
+// ── List filters (spec §5.3) ──
+
+const optionalFilterId = z.string().trim().min(1).optional();
+
+/** Filters shared by `GET /invoices`, `GET /invoices/lines` and `GET /invoices/export`. */
+export const invoiceFilterSchema = z.object({
+  /** `YYYY-MM`; ignored when `from`/`to` are given. */
+  month: monthStringSchema.optional(),
+  from: dateStringSchema().optional(),
+  to: dateStringSchema().optional(),
+  partyId: optionalFilterId,
+  cityId: optionalFilterId,
+  salespersonId: optionalFilterId,
+  productId: optionalFilterId,
+  categoryId: optionalFilterId,
+  invoiceNo: z.coerce.number().int().positive().optional(),
+});
+export type InvoiceFilter = z.infer<typeof invoiceFilterSchema>;
+
+export const invoiceListQuerySchema = paginationQuerySchema.extend(invoiceFilterSchema.shape);
+export type InvoiceListQuery = z.infer<typeof invoiceListQuerySchema>;
+
+// ── Responses (decimals are strings, dates YYYY-MM-DD) ──
+
+const ref = z.object({ id: z.string(), name: z.string() });
+
+/** Footer totals (Database Q5:R10). */
+export const invoiceTotalsSchema = z.object({
+  invoices: z.number(),
+  totalPacks: z.number(),
+  totalWeightKg: z.string(),
+  tons: z.string(),
+  totalAmount: z.string(),
+  totalCommission: z.string(),
+  avgPerTon: z.string(),
+  avgPerPack: z.string(),
+});
+export type InvoiceTotals = z.infer<typeof invoiceTotalsSchema>;
+
+/** One row per invoice. */
+export const invoiceRowSchema = z.object({
+  id: z.string(),
+  invoiceNo: z.number(),
+  invoiceDate: z.string(),
+  party: ref,
+  city: ref.nullable(),
+  subParty: ref.nullable(),
+  salesperson: ref.nullable(),
+  remarks: z.string().nullable(),
+  lineCount: z.number(),
+  totalPacks: z.number(),
+  totalWeightKg: z.string(),
+  totalAmount: z.string(),
+  totalCommission: z.string(),
+});
+export type InvoiceRow = z.infer<typeof invoiceRowSchema>;
+
+export const invoiceListSchema = paginatedSchema(invoiceRowSchema).extend({
+  totals: invoiceTotalsSchema,
+});
+export type InvoiceList = z.infer<typeof invoiceListSchema>;
+
+/** A saved line with its snapshots and calculated values. */
+export const invoiceLineSchema = z.object({
+  id: z.string(),
+  lineNo: z.number(),
+  product: ref.extend({ sku: z.number() }),
+  qtyPacks: z.number(),
+  rate40Kg: z.string(),
+  packWeightKg: z.string(),
+  commissionRate: z.string(),
+  ratePerPack: z.string(),
+  amount: z.string(),
+  commission: z.string(),
+  weightKg: z.string(),
+});
+export type InvoiceLine = z.infer<typeof invoiceLineSchema>;
+
+export const invoiceDetailSchema = invoiceRowSchema.extend({
+  lines: z.array(invoiceLineSchema),
+  createdBy: ref,
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  /** Whether the current user may edit/delete it (spec §3). */
+  canEdit: z.boolean(),
+  canDelete: z.boolean(),
+});
+export type InvoiceDetail = z.infer<typeof invoiceDetailSchema>;
+
+/** One row per line, with its invoice header — the `tblLines` view. */
+export const invoiceLineRowSchema = invoiceLineSchema.extend({
+  invoiceId: z.string(),
+  invoiceNo: z.number(),
+  invoiceDate: z.string(),
+  party: ref,
+  city: ref.nullable(),
+  salesperson: ref.nullable(),
+  category: ref,
+});
+export type InvoiceLineRow = z.infer<typeof invoiceLineRowSchema>;
+
+export const invoiceLineListSchema = paginatedSchema(invoiceLineRowSchema).extend({
+  totals: invoiceTotalsSchema,
+});
+export type InvoiceLineList = z.infer<typeof invoiceLineListSchema>;
+
+/** `POST /invoices/preview` — calculated lines and totals, nothing saved. */
+export const invoicePreviewSchema = z.object({
+  lines: z.array(invoiceLineSchema.omit({ id: true })),
+  totals: invoiceTotalsSchema,
+});
+export type InvoicePreview = z.infer<typeof invoicePreviewSchema>;
+
+export const nextInvoiceNoSchema = z.object({ invoiceNo: z.number() });
+
+/** 409 body when the invoice number is taken, so the UI can offer "open it for edit?". */
+export const invoiceConflictSchema = z.object({
+  statusCode: z.literal(409),
+  message: z.string(),
+  code: z.literal('INVOICE_EXISTS'),
+  invoiceId: z.string().nullable(),
+});

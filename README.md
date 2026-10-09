@@ -30,6 +30,10 @@ pnpm db:seed                         # settings, categories, first SUPER_ADMIN f
 pnpm dev                             # web http://localhost:3000, api http://localhost:4000/api/v1
 ```
 
+If `db:local` ever fails to start with `RuntimeError: Aborted()`, the local data was left inconsistent
+(usually a hard kill mid-write). It's disposable: delete `apps/api/.pglite`, then re-run the migrate and
+seed commands above.
+
 The browser only talks to the web origin: `next.config.ts` rewrites `/api/*` to `${API_URL}/api/*`,
 so auth cookies stay same-origin.
 

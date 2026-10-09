@@ -7,6 +7,8 @@ export class ApiError extends Error {
     readonly statusCode: number,
     message: string,
     readonly errors?: { path: string; message: string }[],
+    /** The full error body, for endpoint-specific fields (e.g. `code`, `invoiceId`). */
+    readonly body?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -51,28 +53,51 @@ const send = (method: string, path: string, body?: unknown) =>
  * sent. Never attaches tokens itself (CLAUDE.md rule 10). On 401 it refreshes the
  * session once and retries; a failed refresh clears the cookies server-side.
  */
-async function request<T>(
-  method: string,
-  path: string,
-  schema: z.ZodType<T>,
-  body?: unknown,
-): Promise<T> {
+async function sendWithRefresh(method: string, path: string, body?: unknown): Promise<Response> {
   let res = await send(method, path, body);
-
   if (res.status === 401 && !NO_REFRESH.has(path)) {
     if (await refreshSession()) {
       res = await send(method, path, body);
     }
     if (res.status === 401) onSessionExpired?.();
   }
+  return res;
+}
+
+async function request<T>(
+  method: string,
+  path: string,
+  schema: z.ZodType<T>,
+  body?: unknown,
+): Promise<T> {
+  const res = await sendWithRefresh(method, path, body);
 
   const payload: unknown = res.status === 204 ? undefined : await res.json().catch(() => undefined);
 
   if (!res.ok) {
     const err = (payload ?? {}) as { message?: string; errors?: ApiError['errors'] };
-    throw new ApiError(res.status, err.message ?? res.statusText, err.errors);
+    throw new ApiError(res.status, err.message ?? res.statusText, err.errors, payload);
   }
   return schema.parse(payload);
+}
+
+/** Downloads a file endpoint (e.g. Excel export) with the session cookies. */
+async function download(path: string, fallbackName: string): Promise<void> {
+  const res = await sendWithRefresh('GET', path);
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new ApiError(res.status, err.message ?? res.statusText);
+  }
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1];
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), {
+    href: url,
+    download: name ?? fallbackName,
+  });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 export const api = {
@@ -84,4 +109,5 @@ export const api = {
   patch: <T>(path: string, schema: z.ZodType<T>, body?: unknown) =>
     request('PATCH', path, schema, body),
   delete: <T>(path: string, schema: z.ZodType<T>) => request('DELETE', path, schema),
+  download,
 };

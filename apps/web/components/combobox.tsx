@@ -1,7 +1,7 @@
 'use client';
 
 import { Check, ChevronsUpDown } from 'lucide-react';
-import { useState } from 'react';
+import { forwardRef, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Command,
@@ -21,17 +21,7 @@ export interface ComboboxOption {
   hint?: string;
 }
 
-/** Searchable single-select (spec §5.2 "searchable combobox"). */
-export function Combobox({
-  id,
-  options,
-  value,
-  onChange,
-  placeholder = 'Select…',
-  noneLabel,
-  disabled,
-  className,
-}: {
+interface ComboboxProps {
   id?: string;
   options: ComboboxOption[];
   value: string | null | undefined;
@@ -41,12 +31,37 @@ export function Combobox({
   noneLabel?: string;
   disabled?: boolean;
   className?: string;
-}) {
+  /** Runs after a pick instead of returning focus to the trigger (e.g. jump to the next grid cell). */
+  afterSelect?: () => void;
+  'aria-invalid'?: boolean;
+  /** Extra attributes for the trigger (e.g. grid navigation markers). */
+  triggerProps?: Record<string, string>;
+}
+
+/** Searchable single-select (spec §5.2 "searchable combobox"). */
+export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Combobox(
+  {
+    id,
+    options,
+    value,
+    onChange,
+    placeholder = 'Select…',
+    noneLabel,
+    disabled,
+    className,
+    afterSelect,
+    triggerProps,
+    ...aria
+  },
+  ref,
+) {
   const [open, setOpen] = useState(false);
+  const picked = useRef(false);
   const selected = options.find((o) => o.value === value);
 
   const pick = (next: string | null) => {
     onChange(next);
+    picked.current = true;
     setOpen(false);
   };
 
@@ -54,6 +69,9 @@ export function Combobox({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={ref}
+          {...triggerProps}
+          {...aria}
           id={id}
           type="button"
           variant="outline"
@@ -70,7 +88,17 @@ export function Combobox({
           <ChevronsUpDown className="opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-(--radix-popover-trigger-width) min-w-56 p-0" align="start">
+      <PopoverContent
+        className="w-(--radix-popover-trigger-width) min-w-56 p-0"
+        align="start"
+        onCloseAutoFocus={(e) => {
+          if (picked.current && afterSelect) {
+            e.preventDefault();
+            afterSelect();
+          }
+          picked.current = false;
+        }}
+      >
         <Command>
           <CommandInput placeholder="Search…" />
           <CommandList>
@@ -99,4 +127,4 @@ export function Combobox({
       </PopoverContent>
     </Popover>
   );
-}
+});

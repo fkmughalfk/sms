@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { emailSchema, passwordSchema } from '@sms/shared';
 import * as argon2 from 'argon2';
+import { directDatabaseUrl } from '../src/config/database-url';
 import { PrismaClient } from '../src/generated/prisma/client';
 
 /**
@@ -9,7 +10,7 @@ import { PrismaClient } from '../src/generated/prisma/client';
  * Safe to re-run — never overwrites an existing user's password.
  */
 async function main() {
-  const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+  const connectionString = directDatabaseUrl();
   if (!connectionString) throw new Error('Set DATABASE_URL (or DIRECT_URL) before seeding.');
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pooledDatabaseUrl } from './database-url';
 
 const durationSchema = z.string().regex(/^\d+[smhd]$/, 'Use a duration like 15m or 7d.');
 
@@ -18,7 +19,11 @@ export const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function validateEnv(raw: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(raw);
+  // Accept the POSTGRES_* names some Vercel/Neon setups use instead of DATABASE_URL.
+  const result = envSchema.safeParse({
+    ...raw,
+    DATABASE_URL: pooledDatabaseUrl(raw as Record<string, string | undefined>),
+  });
   if (!result.success) {
     const details = result.error.issues
       .map((i) => `  ${i.path.join('.')}: ${i.message}`)

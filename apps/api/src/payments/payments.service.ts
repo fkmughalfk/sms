@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import {
   type AuthUser,
   dec,
-  isScopedToOwnData,
   type PaymentFilter,
   type PaymentInput,
   type PaymentList,
@@ -11,6 +10,7 @@ import {
   type UpdatePaymentInput,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { paymentScope } from '../common/data-scope';
 import { dateRangeWhere, fromDbDate, toDbDate } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 import type { Db } from '../masters/master.service';
@@ -35,10 +35,6 @@ const paymentSelect = {
 } satisfies Prisma.PaymentSelect;
 
 type PaymentRec = Prisma.PaymentGetPayload<{ select: typeof paymentSelect }>;
-
-/** Payments a user may see: ADMIN+ all; a USER the ones they recorded (spec §3 note **). */
-const paymentScope = (user: AuthUser): Prisma.PaymentWhereInput =>
-  isScopedToOwnData(user.role) ? { createdById: user.id } : {};
 
 @Injectable()
 export class PaymentsService {

@@ -11,3 +11,8 @@ export function invoiceScope(user: AuthUser): Prisma.InvoiceWhereInput {
     ? { OR: [{ createdById: user.id }, { salespersonId: user.salespersonId }] }
     : { createdById: user.id };
 }
+
+/** Payments a user may see: ADMIN+ all; a USER the ones they recorded. */
+export function paymentScope(user: AuthUser): Prisma.PaymentWhereInput {
+  return isScopedToOwnData(user.role) ? { createdById: user.id } : {};
+}

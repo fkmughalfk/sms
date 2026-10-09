@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatCommission,
+  formatCompact,
   formatKg,
   formatNumber,
   formatPercent,
@@ -48,5 +49,16 @@ describe('format', () => {
   it('quantities and generic numbers', () => {
     expect(formatQty(1200)).toBe('1,200');
     expect(formatNumber('1234.5', 1)).toBe('1,234.5');
+  });
+});
+
+describe('formatCompact', () => {
+  it('shortens large numbers for axes and tiles', () => {
+    expect(formatCompact(950)).toBe('950');
+    expect(formatCompact('12900')).toBe('12.9K');
+    expect(formatCompact('1272188')).toBe('1.3M');
+    expect(formatCompact('10000000000')).toBe('10B');
+    expect(formatCompact('1000000')).toBe('1M');
+    expect(formatCompact('-45000')).toBe('-45K');
   });
 });

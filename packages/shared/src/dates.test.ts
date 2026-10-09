@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   businessMonth,
   businessToday,
+  eachDay,
+  eachMonth,
   fiscalYearRange,
   formatMonthHeading,
   monthRange,
@@ -34,5 +36,28 @@ describe('business dates (Asia/Karachi, UTC+5)', () => {
 
   it('formatMonthHeading', () => {
     expect(formatMonthHeading('2026-09')).toBe('SEPTEMBER 2026');
+  });
+});
+
+describe('eachDay / eachMonth', () => {
+  it('lists days inclusive, across month ends', () => {
+    expect(eachDay('2026-09-29', '2026-10-02')).toEqual([
+      '2026-09-29',
+      '2026-09-30',
+      '2026-10-01',
+      '2026-10-02',
+    ]);
+    expect(eachDay('2026-09-02', '2026-09-02')).toEqual(['2026-09-02']);
+    expect(eachDay('2026-09-03', '2026-09-02')).toEqual([]);
+  });
+
+  it('lists months inclusive, across year ends', () => {
+    expect(eachMonth('2026-11-15', '2027-02-01')).toEqual([
+      '2026-11',
+      '2026-12',
+      '2027-01',
+      '2027-02',
+    ]);
+    expect(eachMonth('2026-01-01', '2026-12-31')).toHaveLength(12);
   });
 });

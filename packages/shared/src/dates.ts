@@ -69,3 +69,30 @@ export function formatMonthHeading(month: MonthString): string {
   });
   return `${name.toUpperCase()} ${y}`;
 }
+
+/** Every `YYYY-MM-DD` from `from` to `to` inclusive. */
+export function eachDay(from: DateString, to: DateString): DateString[] {
+  const days: DateString[] = [];
+  const end = Date.parse(`${to}T00:00:00Z`);
+  for (let t = Date.parse(`${from}T00:00:00Z`); t <= end; t += 86_400_000) {
+    days.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+/** Every `YYYY-MM` from the month of `from` to the month of `to` inclusive. */
+export function eachMonth(from: DateString, to: DateString): MonthString[] {
+  const months: MonthString[] = [];
+  let [y, m] = from.split('-').map(Number) as [number, number];
+  const [ty, tm] = to.split('-').map(Number) as [number, number];
+  while (y < ty || (y === ty && m <= tm)) {
+    months.push(`${y}-${pad(m)}`);
+    if (m === 12) {
+      m = 1;
+      y++;
+    } else {
+      m++;
+    }
+  }
+  return months;
+}

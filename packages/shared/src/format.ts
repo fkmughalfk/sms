@@ -48,3 +48,20 @@ export function formatPercent(ratio: DecimalInput, decimals = 1): string {
 export function formatQty(value: number): string {
   return formatNumber(value, 0);
 }
+
+/** Short form for axis ticks and tiles: 950 · 12.9K · 4.2M · 1.3B. */
+export function formatCompact(value: DecimalInput): string {
+  const d = dec(value);
+  const abs = d.abs();
+  for (const [size, suffix] of [
+    [1e9, 'B'],
+    [1e6, 'M'],
+    [1e3, 'K'],
+  ] as const) {
+    if (abs.gte(size)) {
+      const scaled = d.div(size);
+      return `${formatNumber(scaled, scaled.abs().lt(100) ? 1 : 0).replace(/\.0$/, '')}${suffix}`;
+    }
+  }
+  return formatNumber(d, 0);
+}

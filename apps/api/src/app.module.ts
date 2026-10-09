@@ -14,6 +14,7 @@ import { MastersModule } from './masters/masters.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RecoveryModule } from './recovery/recovery.module';
+import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
 import { UsersModule } from './users/users.module';
 
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     InvoicesModule,
     PaymentsModule,
     RecoveryModule,
+    ReportsModule,
     HealthModule,
   ],
   providers: [

@@ -35,7 +35,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Payments', href: '/payments', icon: Wallet, permission: 'payment.read', ready: false },
   { label: 'Recovery', href: '/recovery', icon: Receipt, permission: 'payment.read', ready: false },
   { label: 'Reports', href: '/reports', icon: BarChart3, ready: false },
-  { label: 'Masters', href: '/masters', icon: Building2, permission: 'masters.read', ready: false },
+  { label: 'Masters', href: '/masters', icon: Building2, permission: 'masters.read', ready: true },
   { label: 'Users', href: '/users', icon: Users, permission: 'users.manage', ready: true },
   {
     label: 'Settings',

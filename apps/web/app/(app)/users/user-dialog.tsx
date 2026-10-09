@@ -12,9 +12,10 @@ import {
 } from '@sms/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { toast } from 'sonner';
 import type { z } from 'zod';
+import { Combobox } from '@/components/combobox';
 import { FormField } from '@/components/form-field';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +35,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { api, ApiError } from '@/lib/api';
+import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { ROLE_LABELS } from '@/lib/roles';
 
 type FormValues = z.input<typeof createUserSchema>;
@@ -59,13 +61,20 @@ export function UserDialog({
     ),
   });
   const { errors, isSubmitting } = form.formState;
+  const role = useWatch({ control: form.control, name: 'role' });
+  const salespersons = useMasterOptions('salespersons');
 
   useEffect(() => {
     if (open) {
       form.reset(
         user
-          ? { name: user.name, email: user.email, role: user.role }
-          : { name: '', email: '', password: '', role: 'USER' },
+          ? {
+              name: user.name,
+              email: user.email,
+              role: user.role,
+              salespersonId: user.salespersonId,
+            }
+          : { name: '', email: '', password: '', role: 'USER', salespersonId: null },
       );
     }
   }, [open, user, form]);
@@ -143,6 +152,31 @@ export function UserDialog({
               )}
             />
           </FormField>
+          {role === 'USER' && (
+            <FormField
+              id="salespersonId"
+              label="Linked salesperson (optional)"
+              error={errors.salespersonId?.message}
+            >
+              <Controller
+                control={form.control}
+                name="salespersonId"
+                render={({ field }) => (
+                  <Combobox
+                    id="salespersonId"
+                    options={toComboboxOptions(salespersons.data, user?.salesperson)}
+                    value={field.value}
+                    onChange={field.onChange}
+                    noneLabel="Not linked"
+                    placeholder="Not linked"
+                  />
+                )}
+              />
+              <p className="text-xs text-muted-foreground">
+                A linked user only sees invoices and reports for that salesperson.
+              </p>
+            </FormField>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel

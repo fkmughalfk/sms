@@ -9,6 +9,7 @@ import { HttpExceptionFilter } from './common/http-exception.filter';
 import { PermissionsGuard } from './common/permissions.guard';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
+import { MastersModule } from './masters/masters.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module';
     AuditModule,
     AuthModule,
     UsersModule,
+    MastersModule,
     HealthModule,
   ],
   providers: [

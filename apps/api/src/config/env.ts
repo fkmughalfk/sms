@@ -8,6 +8,8 @@ export const envSchema = z.object({
   PORT: z.coerce.number().int().default(4000),
   /** Pooled connection string used at runtime (Neon `-pooler` host on Vercel). */
   DATABASE_URL: z.string().min(1),
+  /** Max pooled connections; set 1 for the local PGlite server (it serves one connection). */
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().optional(),
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters.'),
   JWT_ACCESS_TTL: durationSchema.default('15m'),
   JWT_REFRESH_TTL: durationSchema.default('7d'),

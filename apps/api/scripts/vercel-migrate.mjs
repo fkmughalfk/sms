@@ -1,4 +1,5 @@
-// Runs during the Vercel *production* build of sms-api (see apps/api/vercel.json):
+// Runs after the Vercel *production* build of sms-api (see apps/api/vercel.json), so
+// @sms/shared is already compiled for the seed. It
 // applies pending migrations, then the idempotent seed if SEED_SUPERADMIN_* are set.
 // Preview/dev builds skip it so they never touch the production database.
 import { execSync } from 'node:child_process';

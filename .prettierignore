@@ -6,3 +6,4 @@ coverage
 pnpm-lock.yaml
 docs/PROJECT_SPEC.md
 PROJECT_SPEC.md
+**/generated

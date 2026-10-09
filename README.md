@@ -21,6 +21,12 @@ Requirements: Node 22+, pnpm 10.
 pnpm install
 cp .env.example apps/api/.env        # then fill in values
 cp .env.example apps/web/.env.local  # only API_URL is needed
+
+# Database — either a Neon URL in apps/api/.env, or a local PGlite Postgres (no install needed):
+pnpm --filter api db:local           # keep running in its own terminal (data in apps/api/.pglite)
+pnpm --filter api prisma migrate deploy
+pnpm db:seed                         # settings, categories, first SUPER_ADMIN from SEED_SUPERADMIN_*
+
 pnpm dev                             # web http://localhost:3000, api http://localhost:4000/api/v1
 ```
 
@@ -34,8 +40,9 @@ so auth cookies stay same-origin.
 | `pnpm dev`                                  | Run all apps in watch mode       |
 | `pnpm build`                                | Build everything                 |
 | `pnpm lint && pnpm typecheck && pnpm test`  | Must pass before every commit    |
-| `pnpm --filter api test:e2e`                | API end-to-end tests (Supertest) |
-| `pnpm db:migrate` / `db:seed` / `db:studio` | Database (from Phase 2)          |
+| `pnpm --filter api test:e2e`                | API e2e tests (in-memory PGlite) |
+| `pnpm db:migrate` / `db:seed` / `db:studio` | Database                         |
+| `pnpm --filter api db:local`                | Local Postgres via PGlite        |
 
 ## Toolchain notes
 
@@ -44,3 +51,22 @@ so auth cookies stay same-origin.
 - **NestJS is pinned to 11.x.** Nest 12 is ESM-only; Jest and `nestjs-zod` don't support it yet.
 - **`@sms/shared` is built with plain `tsc`** (CommonJS + `.d.ts`), not tsup. On machines with
   Windows Smart App Control, rollup's unsigned native binary is blocked.
+- **Prisma 7 with driver adapters** (`@prisma/adapter-pg`): no native query engine, so it runs on
+  Vercel functions and under Smart App Control. The generated client lives in
+  `apps/api/src/generated` (git-ignored, created on `pnpm install`).
+- **`@nestjs/jwt` is pinned to 11.x** — 12.x is ESM-only and Jest can't load it.
+
+## Auth
+
+JWT access token (15 min) and an opaque, rotated refresh token (7 days, SHA-256 hashed in the DB),
+both in httpOnly `SameSite=Lax` cookies set by the API. The refresh cookie is scoped to
+`/api/v1/auth`. Re-using a rotated refresh token revokes all of that user's sessions. The API
+reloads the user on every request, so deactivation and role changes apply immediately.
+
+## Deploying to Vercel
+
+Two projects from this repo — Root Directory `apps/web` and `apps/api` (each has a `vercel.json`).
+Add a Neon database to the **api** project (Storage → Neon) and set `JWT_ACCESS_SECRET`, `WEB_URL`,
+`SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD`. Production builds of the api run
+`prisma migrate deploy` and the idempotent seed (`apps/api/scripts/vercel-migrate.mjs`).
+Set `API_URL` on the **web** project to the api's URL.

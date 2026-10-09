@@ -2,21 +2,17 @@ import 'reflect-metadata';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { API_PREFIX } from '@sms/shared';
-import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { Env } from './config/env';
+import { configureApp } from './setup';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const config = app.get(ConfigService);
+  const config = app.get<ConfigService<Env, true>>(ConfigService);
 
-  app.setGlobalPrefix(API_PREFIX);
-  app.use(helmet());
-  app.enableCors({
-    origin: config.get<string>('WEB_URL', 'http://localhost:3000'),
-    credentials: true,
-  });
+  configureApp(app, config.get('WEB_URL', { infer: true }));
 
-  const port = config.get<number>('PORT', 4000);
+  const port = config.get('PORT', { infer: true });
   await app.listen(port);
   console.log(`API listening on http://localhost:${port}/${API_PREFIX}`);
 }

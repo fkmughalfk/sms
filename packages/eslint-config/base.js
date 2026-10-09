@@ -3,7 +3,7 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export const ignores = {
-  ignores: ['**/dist/**', '**/.next/**', '**/coverage/**', '**/node_modules/**'],
+  ignores: ['**/dist/**', '**/.next/**', '**/coverage/**', '**/node_modules/**', '**/generated/**'],
 };
 
 /** Rules layered on top of typescript-eslint in every preset. */

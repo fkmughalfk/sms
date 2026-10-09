@@ -96,7 +96,8 @@ export const commissionRateSchema = decimalSchema({
 export const statusSchema = z.object({ isActive: z.boolean() });
 export type StatusInput = z.infer<typeof statusSchema>;
 
-const boolQuery = z.enum(['true', 'false']).transform((v) => v === 'true');
+/** Query-string boolean: 'true' | 'false'. */
+export const booleanQuerySchema = z.enum(['true', 'false']).transform((v) => v === 'true');
 
 /** `?page=1&pageSize=50&sort=invoiceDate:desc` (spec §7). */
 export const paginationQuerySchema = z.object({
@@ -112,7 +113,7 @@ export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
 /** Master list filters: `?search=&active=true|false` (omit `active` for all). */
 export const masterListQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().optional(),
-  active: boolQuery.optional(),
+  active: booleanQuerySchema.optional(),
 });
 export type MasterListQuery = z.infer<typeof masterListQuerySchema>;
 
@@ -126,6 +127,13 @@ export interface Paginated<T> {
   data: T[];
   meta: PageMeta;
 }
+
+/** Response schema for a paginated list of `item`. */
+export const paginatedSchema = <T extends z.ZodType>(item: T) =>
+  z.object({
+    data: z.array(item),
+    meta: z.object({ page: z.number(), pageSize: z.number(), total: z.number() }),
+  });
 
 /** Error body returned by the API exception filter (spec §7). */
 export interface ApiError {

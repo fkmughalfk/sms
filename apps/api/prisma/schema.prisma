@@ -1,0 +1,216 @@
+// Spec §4. Money is Decimal; masters use isActive, invoices/payments use deletedAt.
+// Master names are `citext` so @unique is case-insensitive (spec §4.1).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique @db.Citext
+  passwordHash  String
+  role          Role           @default(USER)
+  isActive      Boolean        @default(true)
+  salespersonId String? // optional link for USER data scoping
+  salesperson   Salesperson?   @relation(fields: [salespersonId], references: [id])
+  lastLoginAt   DateTime?
+  refreshTokens RefreshToken[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Setting {
+  id                    Int      @id @default(1)
+  companyName           String   @default("WAQAR RICE MILLS")
+  companyAddress        String   @default("Shamshad Khan Shaheed Road, Kamoke")
+  defaultCommissionRate Decimal  @default(0.0035) @db.Decimal(8, 6)
+  annualSalesTarget     Decimal  @default(10000000000) @db.Decimal(18, 2)
+  fiscalYearStartMonth  Int      @default(1)
+  userEditWindowHours   Int      @default(24)
+  updatedAt             DateTime @updatedAt
+}
+
+model Category {
+  id             String    @id @default(cuid())
+  name           String    @unique @db.Citext
+  commissionRate Decimal?  @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
+  isActive       Boolean   @default(true)
+  products       Product[]
+}
+
+model Product {
+  id             String        @id @default(cuid())
+  sku            Int           @unique
+  name           String        @unique @db.Citext
+  unitWeightKg   Decimal       @db.Decimal(10, 3)
+  packPcs        Int           @default(1)
+  categoryId     String
+  category       Category      @relation(fields: [categoryId], references: [id])
+  commissionRate Decimal?      @db.Decimal(8, 6)
+  isActive       Boolean       @default(true)
+  lines          InvoiceLine[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model City {
+  id       String    @id @default(cuid())
+  name     String    @unique @db.Citext
+  isActive Boolean   @default(true)
+  parties  Party[]
+  invoices Invoice[]
+}
+
+model Party {
+  id             String     @id @default(cuid())
+  name           String     @unique @db.Citext
+  cityId         String?
+  city           City?      @relation(fields: [cityId], references: [id])
+  phone          String?
+  openingBalance Decimal    @default(0) @db.Decimal(18, 2)
+  isActive       Boolean    @default(true)
+  subParties     SubParty[]
+  invoices       Invoice[]
+  payments       Payment[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model SubParty {
+  id       String    @id @default(cuid())
+  name     String    @db.Citext
+  partyId  String?
+  party    Party?    @relation(fields: [partyId], references: [id])
+  isActive Boolean   @default(true)
+  invoices Invoice[]
+  payments Payment[]
+
+  @@unique([name, partyId])
+}
+
+model Salesperson {
+  id       String    @id @default(cuid())
+  name     String    @unique @db.Citext
+  phone    String?
+  isActive Boolean   @default(true)
+  invoices Invoice[]
+  users    User[]
+}
+
+model Bank {
+  id       String    @id @default(cuid())
+  name     String    @unique @db.Citext
+  isActive Boolean   @default(true)
+  payments Payment[]
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  invoiceNo       Int           @unique
+  invoiceDate     DateTime      @db.Date
+  partyId         String
+  party           Party         @relation(fields: [partyId], references: [id])
+  cityId          String?
+  city            City?         @relation(fields: [cityId], references: [id])
+  subPartyId      String?
+  subParty        SubParty?     @relation(fields: [subPartyId], references: [id])
+  salespersonId   String?
+  salesperson     Salesperson?  @relation(fields: [salespersonId], references: [id])
+  remarks         String?
+  totalPacks      Int           @default(0)
+  totalWeightKg   Decimal       @default(0) @db.Decimal(14, 3)
+  totalAmount     Decimal       @default(0) @db.Decimal(18, 2)
+  totalCommission Decimal       @default(0) @db.Decimal(18, 4)
+  lines           InvoiceLine[]
+  createdById     String
+  updatedById     String?
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([invoiceDate])
+  @@index([partyId])
+  @@index([salespersonId])
+}
+
+model InvoiceLine {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  lineNo         Int
+  productId      String
+  product        Product @relation(fields: [productId], references: [id])
+  qtyPacks       Int
+  rate40Kg       Decimal @db.Decimal(14, 2)
+  packWeightKg   Decimal @db.Decimal(10, 3) // snapshot
+  commissionRate Decimal @db.Decimal(8, 6) // snapshot
+  ratePerPack    Decimal @db.Decimal(14, 4)
+  amount         Decimal @db.Decimal(18, 2)
+  commission     Decimal @db.Decimal(18, 4)
+  weightKg       Decimal @db.Decimal(14, 3)
+
+  @@unique([invoiceId, lineNo])
+  @@index([productId])
+}
+
+model Payment {
+  id          String    @id @default(cuid())
+  paymentDate DateTime  @db.Date
+  partyId     String
+  party       Party     @relation(fields: [partyId], references: [id])
+  subPartyId  String?
+  subParty    SubParty? @relation(fields: [subPartyId], references: [id])
+  slipNo      String?
+  bankId      String?
+  bank        Bank?     @relation(fields: [bankId], references: [id])
+  amount      Decimal   @db.Decimal(18, 2)
+  remarks     String?
+  createdById String
+  updatedById String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([paymentDate])
+  @@index([partyId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String // CREATE | UPDATE | DELETE | LOGIN | IMPORT
+  entity    String // Invoice | Payment | Product | ...
+  entityId  String?
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}

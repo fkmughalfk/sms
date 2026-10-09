@@ -1,25 +1,17 @@
-import { type INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { API_PREFIX } from '@sms/shared';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
+import { createTestApp, type TestApp } from './test-app';
 
 describe('GET /api/v1/health (e2e)', () => {
-  let app: INestApplication;
+  let t: TestApp;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix(API_PREFIX);
-    await app.init();
+    t = await createTestApp();
   });
 
-  afterAll(async () => {
-    await app.close();
-  });
+  afterAll(() => t.close());
 
-  it('responds 200 with status ok', async () => {
-    const res = await request(app.getHttpServer()).get(`/${API_PREFIX}/health`).expect(200);
+  it('responds 200 with status ok, without a session', async () => {
+    const res = await request(t.app.getHttpServer()).get('/api/v1/health').expect(200);
     expect(res.body).toMatchObject({ status: 'ok', service: 'sms-api' });
   });
 });

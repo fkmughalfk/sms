@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   type LucideIcon,
   ScrollText,
+  Upload,
   Settings,
   Users,
   Wallet,
@@ -44,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'settings.manage',
     ready: false,
   },
+  { label: 'Import', href: '/import', icon: Upload, permission: 'import.run', ready: true },
   { label: 'Audit', href: '/audit', icon: ScrollText, permission: 'audit.view', ready: false },
 ];
 

@@ -60,6 +60,25 @@ so auth cookies stay same-origin.
   `apps/api/src/generated` (git-ignored, created on `pnpm install`).
 - **`@nestjs/jwt` is pinned to 11.x** — 12.x is ESM-only and Jest can't load it.
 
+## Importing the old Excel workbook
+
+Super Admin → **Import** (or the CLI). Always check first; nothing is written until you import.
+
+```bash
+pnpm import:excel "data/Sales Management System.xlsx" --dry-run --write-mapping data/mapping.json
+# edit data/mapping.json: confirm each Sheet1 party/bank decision
+pnpm import:excel "data/Sales Management System.xlsx" --mapping data/mapping.json
+```
+
+- Reads Products, Lists, Database (`tblLines`), Payments (`tblPayments`) and Sheet1 (bank log).
+- Names are trimmed and merged case-insensitively; amounts are recalculated with the app's rules
+  and compared with Excel line by line and with the Excel Dashboard totals.
+- Sheet1 party names that don't match a party need a decision (same as a party / new party / leave
+  out); bank texts map to the bank list (the original text stays in the payment's remarks).
+- Sheet1 rows that repeat a Payments-sheet entry (same date, party, amount) are imported once.
+- Re-running is safe: existing products/parties/invoice numbers/payments are skipped.
+- Keep workbooks in `data/` — it is git-ignored.
+
 ## Auth
 
 JWT access token (15 min) and an opaque, rotated refresh token (7 days, SHA-256 hashed in the DB),

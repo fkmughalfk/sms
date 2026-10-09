@@ -44,8 +44,12 @@ const send = (method: string, path: string, body?: unknown) =>
   fetch(`/${API_PREFIX}${path}`, {
     method,
     credentials: 'same-origin',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    // FormData (file uploads) sets its own multipart Content-Type.
+    headers:
+      body === undefined || body instanceof FormData
+        ? undefined
+        : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
   });
 
 /**
@@ -109,5 +113,8 @@ export const api = {
   patch: <T>(path: string, schema: z.ZodType<T>, body?: unknown) =>
     request('PATCH', path, schema, body),
   delete: <T>(path: string, schema: z.ZodType<T>) => request('DELETE', path, schema),
+  /** multipart/form-data POST (e.g. the Excel import). */
+  upload: <T>(path: string, schema: z.ZodType<T>, form: FormData) =>
+    request('POST', path, schema, form),
   download,
 };

@@ -64,10 +64,13 @@ export default function MastersPage() {
             href={`/masters/${href}`}
             className="rounded-xl focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Card className="h-full transition-colors hover:bg-accent/50">
+            <Card className="h-full transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Icon className="size-4" /> {title}
+                  <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 text-white">
+                    <Icon className="size-4" />
+                  </span>
+                  {title}
                 </CardTitle>
                 <CardDescription>{text}</CardDescription>
               </CardHeader>

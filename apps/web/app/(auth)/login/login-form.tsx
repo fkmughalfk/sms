@@ -49,7 +49,7 @@ export function LoginForm() {
   });
 
   return (
-    <Card>
+    <Card className="border-white/20 shadow-2xl shadow-indigo-950/40">
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
       </CardHeader>

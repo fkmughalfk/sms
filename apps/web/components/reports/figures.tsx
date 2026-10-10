@@ -1,6 +1,18 @@
 import { dec, type DecimalInput } from '@sms/shared';
+import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+
+/** Accent colours for stat tiles: the icon chip, top bar and glow carry colour; numbers stay in ink. */
+const TONES = {
+  indigo: { gradient: 'from-indigo-500 to-violet-500', glow: 'bg-indigo-500' },
+  emerald: { gradient: 'from-emerald-500 to-teal-500', glow: 'bg-emerald-500' },
+  amber: { gradient: 'from-amber-400 to-orange-500', glow: 'bg-amber-500' },
+  sky: { gradient: 'from-sky-500 to-blue-600', glow: 'bg-sky-500' },
+  rose: { gradient: 'from-rose-500 to-pink-500', glow: 'bg-rose-500' },
+  fuchsia: { gradient: 'from-fuchsia-500 to-purple-600', glow: 'bg-fuchsia-500' },
+} as const;
+export type Tone = keyof typeof TONES;
 
 /** Stat tile: label · value · sub-text (dataviz "Figures"). Big numbers stay proportional. */
 export function StatTile({
@@ -8,20 +20,50 @@ export function StatTile({
   value,
   sub,
   title,
+  icon: Icon,
+  tone = 'indigo',
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
   /** Full-precision value on hover when `value` is compacted. */
   title?: string;
+  icon?: LucideIcon;
+  tone?: Tone;
 }) {
+  const t = TONES[tone];
   return (
-    <div className="grid gap-1 rounded-lg border bg-card p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-2xl font-semibold" title={title}>
-        {value}
-      </p>
-      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+    <div className="relative overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+      <span
+        aria-hidden
+        className={cn('absolute inset-x-0 top-0 h-1 bg-gradient-to-r', t.gradient)}
+      />
+      <span
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-10 blur-2xl',
+          t.glow,
+        )}
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid min-w-0 gap-1">
+          <p className="text-sm font-medium text-muted-foreground">{label}</p>
+          <p className="truncate text-2xl font-bold tracking-tight" title={title}>
+            {value}
+          </p>
+          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
+        </div>
+        {Icon && (
+          <span
+            className={cn(
+              'grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br text-white shadow-sm',
+              t.gradient,
+            )}
+          >
+            <Icon className="size-5" aria-hidden />
+          </span>
+        )}
+      </div>
     </div>
   );
 }

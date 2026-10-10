@@ -39,7 +39,7 @@ export function SortableHead({
         type="button"
         onClick={() => onSort(field, firstDir)}
         className={cn(
-          'inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+          'inline-flex items-center gap-1 rounded-sm [text-transform:inherit] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           align === 'right' && 'flex-row-reverse',
           active && 'text-foreground',
         )}

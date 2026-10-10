@@ -18,12 +18,18 @@ export function Section({
   return (
     <section
       className={cn(
-        'grid min-w-0 grid-cols-1 content-start gap-3 rounded-lg border bg-card p-4',
+        'grid min-w-0 grid-cols-1 content-start gap-3 rounded-xl border bg-card p-4 shadow-sm',
         className,
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">{title}</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <span
+            aria-hidden
+            className="h-4 w-1 rounded-full bg-gradient-to-b from-indigo-500 to-violet-500"
+          />
+          {title}
+        </h2>
         {action}
       </div>
       {/* Refetch keeps the frame: previous render at reduced opacity, no skeleton flash. */}

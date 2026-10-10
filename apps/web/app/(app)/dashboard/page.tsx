@@ -13,6 +13,16 @@ import {
   salesBreakdownSchema,
   trendSchema,
 } from '@sms/shared';
+import {
+  BadgePercent,
+  CircleDollarSign,
+  FileText,
+  Gauge,
+  HandCoins,
+  Hourglass,
+  Receipt,
+  Weight,
+} from 'lucide-react';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { CategoryShare } from '@/components/reports/category-share';
@@ -54,7 +64,7 @@ function DashboardContent() {
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           {d?.scoped && (
             <p className="text-sm text-muted-foreground">Showing your own invoices and payments.</p>
           )}
@@ -73,21 +83,29 @@ function DashboardContent() {
       >
         <StatTile
           label="Total revenue (PKR)"
+          icon={CircleDollarSign}
+          tone="indigo"
           value={d ? formatPKR(d.kpis.revenue) : '—'}
           sub={d && `${formatPercent(d.target.achieved, 1)} of annual target`}
         />
         <StatTile
           label="Total commission"
+          icon={BadgePercent}
+          tone="fuchsia"
           value={d ? formatCommission(d.kpis.commission) : '—'}
           sub={d && `${formatPercent(d.kpis.commissionPct, 2)} of sales`}
         />
         <StatTile
           label="Total weight (tons)"
+          icon={Weight}
+          tone="amber"
           value={d ? formatTons(d.kpis.weightKg) : '—'}
           sub={d && `${formatKg(d.kpis.weightKg)} KG`}
         />
         <StatTile
           label="Invoices"
+          icon={FileText}
+          tone="sky"
           value={d ? formatQty(d.kpis.invoices) : '—'}
           sub={d && `${formatQty(d.kpis.packs)} packs`}
         />
@@ -100,7 +118,9 @@ function DashboardContent() {
             <dl className="grid gap-3 text-sm">
               <div>
                 <dt className="text-muted-foreground">Achieved</dt>
-                <dd className="text-3xl font-semibold">{formatPercent(d.target.achieved, 1)}</dd>
+                <dd className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-4xl font-bold text-transparent dark:from-indigo-300 dark:to-violet-300">
+                  {formatPercent(d.target.achieved, 1)}
+                </dd>
                 <div className="mt-2">
                   <Meter ratio={d.target.achieved} label="Share of annual target achieved" />
                 </div>
@@ -194,17 +214,31 @@ function DashboardContent() {
           dash.isPlaceholderData && 'opacity-60',
         )}
       >
-        <StatTile label="Total recovered" value={d ? formatPKR(d.recovery.recovered) : '—'} />
+        <StatTile
+          label="Total recovered"
+          icon={HandCoins}
+          tone="emerald"
+          value={d ? formatPKR(d.recovery.recovered) : '—'}
+        />
         <StatTile
           label="Outstanding"
+          icon={Hourglass}
+          tone="rose"
           value={d ? formatPKR(d.recovery.outstanding) : '—'}
           sub="Revenue − recovered, this period"
         />
         <StatTile
           label="Recovery rate"
+          icon={Gauge}
+          tone="sky"
           value={d ? formatPercent(d.recovery.recoveryRate, 1) : '—'}
         />
-        <StatTile label="Payments logged" value={d ? formatQty(d.recovery.payments) : '—'} />
+        <StatTile
+          label="Payments logged"
+          icon={Receipt}
+          tone="amber"
+          value={d ? formatQty(d.recovery.payments) : '—'}
+        />
       </div>
 
       {/* Recovery by party (rows 96+) */}

@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HandCoins } from 'lucide-react';
 import Link from 'next/link';
+import { PageTitle } from '@/components/form-section';
 import { PaymentForm } from '@/components/payment/payment-form';
 
 export default function NewPaymentPage() {
@@ -14,7 +15,7 @@ export default function NewPaymentPage() {
         >
           <ArrowLeft className="size-3" /> Payments
         </Link>
-        <h1 className="text-xl font-semibold">Record payment</h1>
+        <PageTitle icon={HandCoins} tone="emerald" title="Record payment" />
       </div>
       <PaymentForm />
     </div>

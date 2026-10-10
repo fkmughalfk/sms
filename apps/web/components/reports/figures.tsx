@@ -1,18 +1,8 @@
 import { dec, type DecimalInput } from '@sms/shared';
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { type Tone, TONES } from '@/lib/tones';
 import { cn } from '@/lib/utils';
-
-/** Accent colours for stat tiles: the icon chip, top bar and glow carry colour; numbers stay in ink. */
-const TONES = {
-  indigo: { gradient: 'from-indigo-500 to-violet-500', glow: 'bg-indigo-500' },
-  emerald: { gradient: 'from-emerald-500 to-teal-500', glow: 'bg-emerald-500' },
-  amber: { gradient: 'from-amber-400 to-orange-500', glow: 'bg-amber-500' },
-  sky: { gradient: 'from-sky-500 to-blue-600', glow: 'bg-sky-500' },
-  rose: { gradient: 'from-rose-500 to-pink-500', glow: 'bg-rose-500' },
-  fuchsia: { gradient: 'from-fuchsia-500 to-purple-600', glow: 'bg-fuchsia-500' },
-} as const;
-export type Tone = keyof typeof TONES;
 
 /** Stat tile: label · value · sub-text (dataviz "Figures"). Big numbers stay proportional. */
 export function StatTile({

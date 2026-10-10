@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FilePlus2 } from 'lucide-react';
 import Link from 'next/link';
+import { PageTitle } from '@/components/form-section';
 import { InvoiceForm } from '@/components/invoice/invoice-form';
 
 export default function NewInvoicePage() {
@@ -14,7 +15,7 @@ export default function NewInvoicePage() {
         >
           <ArrowLeft className="size-3" /> Invoices
         </Link>
-        <h1 className="text-xl font-semibold">New invoice</h1>
+        <PageTitle icon={FilePlus2} tone="indigo" title="New invoice" />
       </div>
       <InvoiceForm />
     </div>

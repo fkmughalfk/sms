@@ -2,8 +2,9 @@
 
 import { paymentRowSchema } from '@sms/shared';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, HandCoins } from 'lucide-react';
 import Link from 'next/link';
+import { PageTitle } from '@/components/form-section';
 import { useParams } from 'next/navigation';
 import { PaymentForm } from '@/components/payment/payment-form';
 import { api } from '@/lib/api';
@@ -32,7 +33,7 @@ export default function EditPaymentPage() {
         >
           <ArrowLeft className="size-3" /> Payments
         </Link>
-        <h1 className="text-xl font-semibold">Edit payment</h1>
+        <PageTitle icon={HandCoins} tone="emerald" title="Edit payment" />
         <p className="text-xs text-muted-foreground">Entered by {data.createdBy.name}</p>
       </div>
       <PaymentForm key={data.id} payment={data} />

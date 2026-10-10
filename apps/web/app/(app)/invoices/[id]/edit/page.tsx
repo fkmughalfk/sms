@@ -1,7 +1,8 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FilePen } from 'lucide-react';
 import Link from 'next/link';
+import { PageTitle } from '@/components/form-section';
 import { InvoiceForm } from '@/components/invoice/invoice-form';
 import { useInvoice } from '@/lib/use-invoice';
 
@@ -20,7 +21,7 @@ export default function EditInvoicePage() {
         >
           <ArrowLeft className="size-3" /> Invoice #{invoice.invoiceNo}
         </Link>
-        <h1 className="text-xl font-semibold">Edit invoice #{invoice.invoiceNo}</h1>
+        <PageTitle icon={FilePen} tone="indigo" title={`Edit invoice #${invoice.invoiceNo}`} />
       </div>
       {invoice.canEdit ? (
         <InvoiceForm key={invoice.updatedAt} detail={invoice} />

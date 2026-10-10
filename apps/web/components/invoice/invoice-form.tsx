@@ -19,7 +19,7 @@ import {
   subPartyOptionSchema,
 } from '@sms/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, FileText, Package, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form';
@@ -28,6 +28,7 @@ import { z } from 'zod';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { FormField } from '@/components/form-field';
+import { FormSection } from '@/components/form-section';
 import { PartyDialog } from '@/components/master/party-dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -233,7 +234,11 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
     <div className="grid gap-4 lg:grid-cols-[1fr_16rem]">
       <div className="grid min-w-0 gap-4">
         {/* Header (Excel D4:D9) */}
-        <div className="grid gap-3 rounded-lg border p-4 sm:grid-cols-2 xl:grid-cols-3">
+        <FormSection
+          title="Invoice details"
+          icon={FileText}
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
+        >
           <FormField id="invoiceNo" label="Invoice No." error={err('invoiceNo')}>
             <Input
               id="invoiceNo"
@@ -258,6 +263,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                 value={partyId}
                 onChange={onPartyChange}
                 placeholder="Select party"
+                className="min-w-0 flex-1"
                 aria-invalid={!!err('partyId')}
               />
               {can('masters.manage') && (
@@ -327,7 +333,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
               <Input id="remarks" autoComplete="off" {...form.register('remarks')} />
             </FormField>
           </div>
-        </div>
+        </FormSection>
 
         {err('lines') && (
           <Alert variant="destructive">
@@ -336,168 +342,212 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
         )}
 
         {/* Line items */}
-        <div ref={gridRef} onKeyDown={onGridKeyDown} className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[56rem] text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr className="[&>th]:px-2 [&>th]:py-2 [&>th]:font-medium">
-                <th className="w-10 text-left">Sr</th>
-                <th className="text-left">Description (Product)</th>
-                <th className="w-20 text-right">Bags</th>
-                <th className="w-20 text-right">Pack Wt</th>
-                <th className="w-28 text-right">Rate 40Kg</th>
-                <th className="w-24 text-right">Rate/Pack</th>
-                <th className="w-28 text-right">Amount</th>
-                <th className="w-24 text-right">Commission</th>
-                <th className="w-24 text-right">Weight (KG)</th>
-                <th className="w-10" />
-              </tr>
-            </thead>
-            <tbody>
-              {fields.map((field, i) => {
-                const line = lines[i];
-                const calc = draft.lines[i];
-                const product = line?.productId ? productMap.get(line.productId) : undefined;
-                const dupe = !!line?.productId && dupes.has(line.productId);
-                return (
-                  <tr key={field.id} className="border-t [&>td]:px-2 [&>td]:py-1">
-                    <td className="text-muted-foreground tabular-nums">{i + 1}</td>
-                    <td className="min-w-64">
-                      <Controller
-                        control={form.control}
-                        name={`lines.${i}.productId`}
-                        render={({ field: f }) => (
-                          <Combobox
-                            options={productOptions}
-                            value={f.value}
-                            onChange={f.onChange}
-                            placeholder="Select product"
-                            noneLabel="(clear)"
-                            className={cn('h-8', dupe && 'border-amber-500')}
-                            aria-invalid={!!err(`lines.${i}.productId`)}
-                            triggerProps={{ 'data-cell': '' }}
-                            afterSelect={() => document.getElementById(`qty-${i}`)?.focus()}
-                          />
-                        )}
-                      />
-                    </td>
-                    <td>
-                      <Input
-                        id={`qty-${i}`}
-                        data-cell=""
-                        inputMode="numeric"
-                        className="h-8 text-right tabular-nums"
-                        aria-invalid={!!err(`lines.${i}.qtyPacks`)}
-                        {...form.register(`lines.${i}.qtyPacks`)}
-                      />
-                    </td>
-                    <td className="text-right text-muted-foreground tabular-nums">
-                      {calc
-                        ? formatKg(calc.packWeightKg)
-                        : product
-                          ? formatKg(product.packWeightKg)
-                          : ''}
-                    </td>
-                    <td>
-                      <Input
-                        data-cell=""
-                        inputMode="decimal"
-                        className="h-8 text-right tabular-nums"
-                        aria-invalid={!!err(`lines.${i}.rate40Kg`)}
-                        {...form.register(`lines.${i}.rate40Kg`)}
-                      />
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {calc ? formatNumber(calc.ratePerPack, 2) : ''}
-                    </td>
-                    <td className="text-right font-medium tabular-nums">
-                      {calc ? formatPKR(calc.amount) : ''}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {calc ? formatCommission(calc.commission) : ''}
-                    </td>
-                    <td className="text-right tabular-nums">
-                      {calc ? formatKg(calc.weightKg) : ''}
-                    </td>
-                    <td>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8"
-                        tabIndex={-1}
-                        aria-label={`Remove line ${i + 1}`}
-                        onClick={() =>
-                          fields.length > 1 ? remove(i) : form.setValue(`lines.0`, blankLine())
-                        }
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <FormSection
+          title="Items"
+          icon={Package}
+          tone="amber"
+          className="grid gap-3"
+          action={
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">
+              {draft.lines.length} {draft.lines.length === 1 ? 'line' : 'lines'}
+            </span>
+          }
+        >
+          <div
+            ref={gridRef}
+            onKeyDown={onGridKeyDown}
+            className="overflow-x-auto rounded-lg border"
+          >
+            <table className="w-full min-w-[60rem] text-sm">
+              <thead className="bg-indigo-50 text-xs text-indigo-900 dark:bg-indigo-500/10 dark:text-indigo-200">
+                <tr className="[&>th]:px-2 [&>th]:py-2.5 [&>th]:font-semibold">
+                  <th className="w-10 text-left">Sr</th>
+                  <th className="text-left">Description (Product)</th>
+                  <th className="w-24 text-right">Bags</th>
+                  <th className="w-20 text-right">Pack Wt</th>
+                  <th className="w-32 text-right">Rate 40Kg</th>
+                  <th className="w-24 text-right">Rate/Pack</th>
+                  <th className="w-28 text-right">Amount</th>
+                  <th className="w-24 text-right">Commission</th>
+                  <th className="w-24 text-right">Weight (KG)</th>
+                  <th className="w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {fields.map((field, i) => {
+                  const line = lines[i];
+                  const calc = draft.lines[i];
+                  const product = line?.productId ? productMap.get(line.productId) : undefined;
+                  const dupe = !!line?.productId && dupes.has(line.productId);
+                  return (
+                    <tr
+                      key={field.id}
+                      className="border-t transition-colors even:bg-muted/40 focus-within:bg-indigo-50/60 dark:focus-within:bg-indigo-500/10 [&>td]:px-2 [&>td]:py-1"
+                    >
+                      <td>
+                        <span className="grid size-6 place-items-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700 tabular-nums dark:bg-indigo-500/20 dark:text-indigo-200">
+                          {i + 1}
+                        </span>
+                      </td>
+                      <td className="min-w-64">
+                        <Controller
+                          control={form.control}
+                          name={`lines.${i}.productId`}
+                          render={({ field: f }) => (
+                            <Combobox
+                              options={productOptions}
+                              value={f.value}
+                              onChange={f.onChange}
+                              placeholder="Select product"
+                              noneLabel="(clear)"
+                              className={cn('h-8', dupe && 'border-amber-500')}
+                              aria-invalid={!!err(`lines.${i}.productId`)}
+                              triggerProps={{ 'data-cell': '' }}
+                              afterSelect={() => document.getElementById(`qty-${i}`)?.focus()}
+                            />
+                          )}
+                        />
+                      </td>
+                      <td>
+                        <Input
+                          id={`qty-${i}`}
+                          data-cell=""
+                          inputMode="numeric"
+                          className="h-8 text-right tabular-nums"
+                          aria-invalid={!!err(`lines.${i}.qtyPacks`)}
+                          {...form.register(`lines.${i}.qtyPacks`)}
+                        />
+                      </td>
+                      <td className="text-right text-muted-foreground tabular-nums">
+                        {calc
+                          ? formatKg(calc.packWeightKg)
+                          : product
+                            ? formatKg(product.packWeightKg)
+                            : ''}
+                      </td>
+                      <td>
+                        <Input
+                          data-cell=""
+                          inputMode="decimal"
+                          className="h-8 text-right tabular-nums"
+                          aria-invalid={!!err(`lines.${i}.rate40Kg`)}
+                          {...form.register(`lines.${i}.rate40Kg`)}
+                        />
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {calc ? formatNumber(calc.ratePerPack, 2) : ''}
+                      </td>
+                      <td className="text-right font-semibold text-indigo-700 tabular-nums dark:text-indigo-300">
+                        {calc ? formatPKR(calc.amount) : ''}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {calc ? formatCommission(calc.commission) : ''}
+                      </td>
+                      <td className="text-right tabular-nums">
+                        {calc ? formatKg(calc.weightKg) : ''}
+                      </td>
+                      <td>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8"
+                          tabIndex={-1}
+                          aria-label={`Remove line ${i + 1}`}
+                          onClick={() =>
+                            fields.length > 1 ? remove(i) : form.setValue(`lines.0`, blankLine())
+                          }
+                        >
+                          <Trash2 className="size-4 text-rose-500" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => append(blankLine())}>
-            <Plus /> Add row
-          </Button>
-          {dupes.size > 0 && (
-            <p className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="size-4" /> The same product appears on more than one line.
-            </p>
-          )}
-        </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-dashed border-indigo-300 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800 dark:border-indigo-500/40 dark:text-indigo-300 dark:hover:bg-indigo-500/10"
+              onClick={() => append(blankLine())}
+            >
+              <Plus /> Add row
+            </Button>
+            {dupes.size > 0 && (
+              <p className="flex items-center gap-1.5 text-sm text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-4" /> The same product appears on more than one line.
+              </p>
+            )}
+          </div>
+        </FormSection>
       </div>
 
       {/* Summary panel (Excel I5:I7) */}
       <aside className="lg:sticky lg:top-4 lg:self-start">
-        <div className="grid gap-3 rounded-lg border p-4">
-          <h2 className="text-sm font-semibold">Invoice summary</h2>
-          <dl className="grid gap-2 text-sm [&>div]:flex [&>div]:justify-between [&_dd]:font-medium [&_dd]:tabular-nums [&_dt]:text-muted-foreground">
-            <div>
-              <dt>Amount</dt>
-              <dd className="text-base">{formatPKR(totals.totalAmount)}</dd>
-            </div>
-            <div>
-              <dt>Commission</dt>
-              <dd>{formatCommission(totals.totalCommission)}</dd>
-            </div>
-            <div>
-              <dt>Total bags</dt>
-              <dd>{formatQty(totals.totalPacks)}</dd>
-            </div>
-            <div>
-              <dt>Weight</dt>
-              <dd>
-                {formatKg(totals.totalWeightKg)} KG · {formatTons(totals.totalWeightKg)} t
-              </dd>
-            </div>
-          </dl>
-          <div className="grid gap-2 pt-2">
-            <Button type="button" onClick={() => submit(false)} disabled={save.isPending}>
-              {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
-            </Button>
-            {!isEdit && (
+        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-600 p-4 text-white">
+            <div
+              aria-hidden
+              className="absolute -top-8 -right-8 size-24 rounded-full bg-white/15 blur-xl"
+            />
+            <p className="text-xs font-medium tracking-wide text-white/80 uppercase">
+              Invoice total (PKR)
+            </p>
+            <p className="mt-1 text-2xl font-bold tracking-tight tabular-nums">
+              {formatPKR(totals.totalAmount)}
+            </p>
+          </div>
+          <div className="grid gap-3 p-4">
+            <h2 className="sr-only">Invoice summary</h2>
+            <dl className="grid gap-2 text-sm [&>div]:flex [&>div]:justify-between [&_dd]:font-medium [&_dd]:tabular-nums [&_dt]:text-muted-foreground">
+              <div>
+                <dt>Commission</dt>
+                <dd>{formatCommission(totals.totalCommission)}</dd>
+              </div>
+              <div>
+                <dt>Total bags</dt>
+                <dd>{formatQty(totals.totalPacks)}</dd>
+              </div>
+              <div>
+                <dt>Weight</dt>
+                <dd>
+                  {formatKg(totals.totalWeightKg)} KG · {formatTons(totals.totalWeightKg)} t
+                </dd>
+              </div>
+            </dl>
+            <div className="grid gap-2 pt-2">
               <Button
                 type="button"
-                variant="secondary"
-                onClick={() => submit(true)}
+                className="bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/25 hover:from-indigo-500 hover:to-violet-500"
+                onClick={() => submit(false)}
                 disabled={save.isPending}
               >
-                Save & new
+                {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
               </Button>
-            )}
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => (isDirty ? setConfirmClear(true) : undefined)}
-              disabled={!isDirty}
-            >
-              {isEdit ? 'Discard changes' : 'Clear'}
-            </Button>
+              {!isEdit && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => submit(true)}
+                  disabled={save.isPending}
+                >
+                  Save & new
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => (isDirty ? setConfirmClear(true) : undefined)}
+                disabled={!isDirty}
+              >
+                {isEdit ? 'Discard changes' : 'Clear'}
+              </Button>
+            </div>
           </div>
         </div>
       </aside>

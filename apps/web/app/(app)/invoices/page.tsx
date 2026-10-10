@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  businessMonth,
   formatCommission,
   formatKg,
   formatMonthHeading,
@@ -55,7 +54,7 @@ interface Filters {
 }
 
 const initialFilters = (): Filters => ({
-  month: businessMonth(),
+  month: '', // all dates, newest first — pick a month to narrow it
   from: '',
   to: '',
   partyId: null,

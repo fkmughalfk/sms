@@ -20,6 +20,7 @@ import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting
 import { PasswordService } from '../auth/password.service';
 import { TokenService } from '../auth/token.service';
 import { Prisma } from '../generated/prisma/client';
+import { describeUsage } from '../masters/master.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 const userSelect = {
@@ -204,6 +205,45 @@ export class UsersService {
     // Spec §5.1: deactivating a user revokes their tokens.
     if (!isActive) await this.tokens.revokeAllForUser(id);
     return user;
+  }
+
+  /**
+   * Deletes an account that never did anything: no invoices or payments entered or edited,
+   * no audit activity (logins included). Anyone with history must be deactivated instead.
+   */
+  async remove(actor: AuthUser, id: string, ip: string | null): Promise<void> {
+    const target = await this.findForManage(actor, id);
+    if (target.id === actor.id) {
+      throw new BadRequestException('You cannot delete your own account.');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      if (target.role === 'SUPER_ADMIN' && target.isActive) {
+        await this.assertAnotherActiveSuperAdmin(tx, id);
+      }
+      const byUser = { OR: [{ createdById: id }, { updatedById: id }] };
+      const used = describeUsage([
+        ['invoice', 'invoices', await tx.invoice.count({ where: byUser })],
+        ['payment', 'payments', await tx.payment.count({ where: byUser })],
+        ['logged action', 'logged actions', await tx.auditLog.count({ where: { userId: id } })],
+      ]);
+      if (used) {
+        throw new ConflictException(
+          `${target.name} has ${used} on record, so the account can’t be deleted. Deactivate it instead.`,
+        );
+      }
+      await tx.user.delete({ where: { id } }); // refresh tokens cascade
+      await this.audit.log(
+        {
+          userId: actor.id,
+          action: 'DELETE',
+          entity: 'User',
+          entityId: id,
+          before: toUser(target),
+          ip,
+        },
+        tx,
+      );
+    });
   }
 
   async resetPassword(

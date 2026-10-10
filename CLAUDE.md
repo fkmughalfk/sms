@@ -23,7 +23,7 @@ The full specification is in `docs/PROJECT_SPEC.md`. Read it before starting any
 3. Amount = `ROUND_HALF_UP(rate40Kg / 40 × packWeightKg × qtyPacks, 0)`. Commission = amount × rate, unrounded (stored to 4 dp). The golden test for invoice #15 (spec §6.4: total 1,272,188 / commission 4,452.658 / 200 bags) must always pass.
 4. **Snapshot** `packWeightKg` and `commissionRate` onto each invoice line when it is saved.
 5. **Permissions** come from `packages/shared/src/permissions.ts`. Enforce them in the API guard, and mirror them in the UI.
-6. Soft delete invoices and payments (`deletedAt`), and deactivate masters (`isActive`). Never hard delete business data.
+6. Soft delete invoices and payments (`deletedAt`), and deactivate masters (`isActive`). Never hard delete business data. The one exception is a master or user that nothing references (soft-deleted invoices and payments count as references). It may be hard deleted. Anything referenced gets a 409 that says to deactivate it instead.
 7. Invoice and payment writes run in a single Prisma transaction, plus an `AuditLog` entry.
 8. Trim names, and keep master names unique case-insensitively.
 9. Use Asia/Karachi for "today" and month boundaries. Dates use the format `YYYY-MM-DD`.

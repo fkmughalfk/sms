@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { SubPartyInput, SubPartyListQuery, SubPartyOption, SubPartyRow } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
 import { byRelationName } from '../../common/sorting';
-import { type Db, type MasterDelegate, MasterService } from '../master.service';
+import { type Db, type MasterDelegate, MasterService, type Usage } from '../master.service';
 import { assertActiveRef, nameContains } from '../master-utils';
 
 const select = {
@@ -63,5 +63,12 @@ export class SubPartiesService extends MasterService<
       select: { id: true, name: true, partyId: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  protected async usage(db: Db, id: string): Promise<Usage[]> {
+    return [
+      ['invoice', 'invoices', await db.invoice.count({ where: { subPartyId: id } })],
+      ['payment', 'payments', await db.payment.count({ where: { subPartyId: id } })],
+    ];
   }
 }

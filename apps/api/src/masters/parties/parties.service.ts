@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { PartyInput, PartyListQuery, PartyOption, PartyRow } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
 import { byFields, byRelationName } from '../../common/sorting';
-import { type Db, type MasterDelegate, MasterService } from '../master.service';
+import { type Db, type MasterDelegate, MasterService, type Usage } from '../master.service';
 import { assertActiveRef, nameContains } from '../master-utils';
 
 const select = {
@@ -55,5 +55,13 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
       select: { id: true, name: true, cityId: true },
       orderBy: { name: 'asc' },
     });
+  }
+
+  protected async usage(db: Db, id: string): Promise<Usage[]> {
+    return [
+      ['invoice', 'invoices', await db.invoice.count({ where: { partyId: id } })],
+      ['payment', 'payments', await db.payment.count({ where: { partyId: id } })],
+      ['sub-party', 'sub-parties', await db.subParty.count({ where: { partyId: id } })],
+    ];
   }
 }

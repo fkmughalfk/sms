@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  BUSINESS_TIMEZONE,
   formatMonthHeading,
   formatPKR2,
   formatQty,
@@ -9,7 +10,7 @@ import {
   paymentListSchema,
 } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, MoreHorizontal, Pencil, Plus, Trash2, X, Wallet } from 'lucide-react';
+import { Download, Eye, Pencil, Plus, Trash2, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -18,12 +19,6 @@ import { z } from 'zod';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Table,
@@ -42,6 +37,8 @@ import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { RowActions } from '@/components/data-table/row-actions';
+import { DetailsDialog } from '@/components/details-dialog';
 
 interface Filters {
   month: string;
@@ -84,6 +81,7 @@ export default function PaymentsPage() {
   const { can } = useAuth();
   const [filters, setFilters] = useState(initialFilters);
   const [deleting, setDeleting] = useState<PaymentRow | null>(null);
+  const [viewing, setViewing] = useState<PaymentRow | null>(null);
   const [exporting, setExporting] = useState(false);
   const deferred = useDeferredValue(filters);
 
@@ -125,7 +123,6 @@ export default function PaymentsPage() {
     }
   };
 
-  const canManage = can('payment.edit') || can('payment.delete');
   const usingRange = !!(filters.from || filters.to);
   const heading = usingRange
     ? `${filters.from ? toDisplayDate(filters.from) : '…'} to ${filters.to ? toDisplayDate(filters.to) : '…'}`
@@ -250,7 +247,7 @@ export default function PaymentsPage() {
                 Amount
               </SortableHead>
               <TableHead className="hidden lg:table-cell">Remarks</TableHead>
-              {canManage && <TableHead className="w-12" />}
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -282,29 +279,27 @@ export default function PaymentsPage() {
                 <TableCell className="hidden max-w-64 truncate lg:table-cell">
                   {p.remarks ?? ''}
                 </TableCell>
-                {canManage && (
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="Payment actions">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {can('payment.edit') && (
-                          <DropdownMenuItem onSelect={() => router.push(`/payments/${p.id}/edit`)}>
-                            <Pencil /> Edit
-                          </DropdownMenuItem>
-                        )}
-                        {can('payment.delete') && (
-                          <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(p)}>
-                            <Trash2 /> Delete
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                )}
+                <TableCell>
+                  <RowActions
+                    label={`payment of ${formatPKR2(p.amount)}`}
+                    actions={[
+                      { label: 'View', icon: Eye, onSelect: () => setViewing(p) },
+                      {
+                        label: 'Edit',
+                        icon: Pencil,
+                        onSelect: () => router.push(`/payments/${p.id}/edit`),
+                        show: can('payment.edit'),
+                      },
+                      {
+                        label: 'Delete',
+                        icon: Trash2,
+                        onSelect: () => setDeleting(p),
+                        destructive: true,
+                        show: can('payment.delete'),
+                      },
+                    ]}
+                  />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -321,7 +316,7 @@ export default function PaymentsPage() {
                   {formatPKR2(data.totals.totalAmount)}
                 </TableCell>
                 <TableCell className="hidden lg:table-cell" />
-                {canManage && <TableCell />}
+                <TableCell />
               </TableRow>
             </TableFooter>
           )}
@@ -338,6 +333,55 @@ export default function PaymentsPage() {
           noun="payments"
         />
       )}
+
+      <DetailsDialog
+        open={viewing !== null}
+        onOpenChange={(o) => !o && setViewing(null)}
+        title={viewing && formatPKR2(viewing.amount)}
+        description={viewing && `Payment from ${viewing.party.name}`}
+        icon={Wallet}
+        tone="emerald"
+        items={
+          viewing
+            ? [
+                { label: 'Date', value: toDisplayDate(viewing.paymentDate) },
+                { label: 'Amount (PKR)', value: formatPKR2(viewing.amount) },
+                {
+                  label: 'Party',
+                  value: (
+                    <Link
+                      href={`/recovery/${viewing.party.id}`}
+                      className="text-primary hover:underline"
+                    >
+                      {viewing.party.name}
+                    </Link>
+                  ),
+                },
+                { label: 'Sub party', value: viewing.subParty?.name },
+                { label: 'Bank', value: viewing.bank?.name },
+                { label: 'Slip / Transaction No.', value: viewing.slipNo },
+                { label: 'Remarks', value: viewing.remarks, wide: true },
+                { label: 'Entered by', value: viewing.createdBy.name },
+                {
+                  label: 'Entered on',
+                  value: new Date(viewing.createdAt).toLocaleString('en-GB', {
+                    timeZone: BUSINESS_TIMEZONE,
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }),
+                },
+              ]
+            : []
+        }
+        actions={
+          viewing &&
+          can('payment.edit') && (
+            <Button variant="secondary" onClick={() => router.push(`/payments/${viewing.id}/edit`)}>
+              <Pencil /> Edit
+            </Button>
+          )
+        }
+      />
 
       <ConfirmDialog
         open={deleting !== null}

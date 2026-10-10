@@ -10,7 +10,7 @@ import {
 } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
 import { byFields, byRelationName } from '../../common/sorting';
-import { type Db, type MasterDelegate, MasterService } from '../master.service';
+import { type Db, type MasterDelegate, MasterService, type Usage } from '../master.service';
 import { assertActiveRef, assertUnique, nameContains, notId } from '../master-utils';
 
 const select = {
@@ -118,5 +118,11 @@ export class ProductsService extends MasterService<
         categoryId: row.categoryId,
       };
     });
+  }
+
+  protected async usage(db: Db, id: string): Promise<Usage[]> {
+    return [
+      ['invoice line', 'invoice lines', await db.invoiceLine.count({ where: { productId: id } })],
+    ];
   }
 }

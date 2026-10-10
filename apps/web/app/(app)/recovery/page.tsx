@@ -2,7 +2,7 @@
 
 import { dec, formatPKR2, formatPercent, recoverySummarySchema } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Plus, Receipt } from 'lucide-react';
+import { BookOpen, HandCoins, Plus, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState } from 'react';
@@ -14,6 +14,7 @@ import {
   TableBody,
   TableCell,
   TableFooter,
+  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
@@ -26,6 +27,7 @@ import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { RowActions } from '@/components/data-table/row-actions';
 
 /** Share bar for "% Recovered" (Payments J20:N…). */
 function RecoveryBar({ rate }: { rate: string }) {
@@ -175,12 +177,13 @@ export default function RecoveryPage() {
               >
                 Last payment
               </SortableHead>
+              <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {(isPending || error || data?.data.length === 0) && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   {isPending ? 'Loading…' : error ? error.message : 'No parties match.'}
                 </TableCell>
               </TableRow>
@@ -223,6 +226,24 @@ export default function RecoveryPage() {
                   <TableCell className="hidden text-right tabular-nums lg:table-cell">
                     {r.lastPaymentDate?.split('-').reverse().join('-') ?? '—'}
                   </TableCell>
+                  <TableCell>
+                    <RowActions
+                      label={r.party.name}
+                      actions={[
+                        {
+                          label: 'View ledger',
+                          icon: BookOpen,
+                          onSelect: () => router.push(`/recovery/${r.party.id}`),
+                        },
+                        {
+                          label: 'Record payment',
+                          icon: HandCoins,
+                          onSelect: () => router.push('/payments/new'),
+                          show: can('payment.create'),
+                        },
+                      ]}
+                    />
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -245,6 +266,7 @@ export default function RecoveryPage() {
                   <RecoveryBar rate={data.totals.recoveryRate} />
                 </TableCell>
                 <TableCell className="hidden lg:table-cell" />
+                <TableCell />
               </TableRow>
             </TableFooter>
           )}

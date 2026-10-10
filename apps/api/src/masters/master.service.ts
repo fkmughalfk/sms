@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import type { AuthUser, MasterListQuery, MasterOption, Paginated } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
 import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting';
@@ -14,9 +14,23 @@ export interface MasterDelegate<Rec> {
   findFirst(args: object): Promise<{ id: string } | null>;
   create(args: object): Promise<Rec>;
   update(args: object): Promise<Rec>;
+  delete(args: object): Promise<unknown>;
 }
 
 export type Db = PrismaService | Prisma.TransactionClient;
+
+/** One kind of reference to a master record: `['invoice', 'invoices', 3]`. */
+export type Usage = [singular: string, plural: string, count: number];
+
+/** "3 invoices and 1 payment" — or `null` when nothing uses the record. */
+export function describeUsage(usage: Usage[]): string | null {
+  const parts = usage
+    .filter(([, , n]) => n > 0)
+    .map(([one, many, n]) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`);
+  const last = parts.pop();
+  if (last === undefined) return null;
+  return parts.length === 0 ? last : `${parts.join(', ')} and ${last}`;
+}
 
 type Writable<Create> = Partial<Create> & { isActive?: boolean };
 
@@ -65,6 +79,13 @@ export abstract class MasterService<
   protected listWhere(query: Query): object {
     return nameContains(query.search);
   }
+
+  /**
+   * Where the record is referenced: `[singular, plural, count]` per kind. Counts include
+   * soft-deleted invoices/payments, which still point at it. A record with any use can only
+   * be deactivated (CLAUDE.md rule 6); an unused one may be deleted.
+   */
+  protected abstract usage(db: Db, id: string): Promise<Usage[]>;
 
   /** Where-clause that would clash with `name` (override for scoped uniqueness). */
   protected uniqueNameWhere(name: string, _merged: Writable<Create>): object {
@@ -174,6 +195,32 @@ export abstract class MasterService<
         tx,
       );
       return row;
+    });
+  }
+
+  /** Deletes a record that nothing uses; otherwise 409 "deactivate it instead". */
+  remove(actor: AuthUser, id: string, ip: string | null): Promise<void> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await this.findOrThrow(tx, id);
+      const used = describeUsage(await this.usage(tx, id));
+      if (used) {
+        throw new ConflictException(
+          `“${existing.name}” is used on ${used}, so it can’t be deleted. Deactivate it instead.`,
+        );
+      }
+      const ctx = await this.loadContext(tx);
+      await this.delegate(tx).delete({ where: { id } });
+      await this.audit.log(
+        {
+          userId: actor.id,
+          action: 'DELETE',
+          entity: this.entity,
+          entityId: id,
+          before: this.toRow(existing, ctx),
+          ip,
+        },
+        tx,
+      );
     });
   }
 

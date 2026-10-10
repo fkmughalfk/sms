@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { BankInput, NamedRow } from '@sms/shared';
-import { type Db, type MasterDelegate, MasterService } from '../master.service';
+import { type Db, type MasterDelegate, MasterService, type Usage } from '../master.service';
 
 @Injectable()
 export class BanksService extends MasterService<NamedRow, NamedRow, BankInput> {
@@ -9,5 +9,9 @@ export class BanksService extends MasterService<NamedRow, NamedRow, BankInput> {
   protected readonly select = { id: true, name: true, isActive: true };
   protected delegate(db: Db) {
     return db.bank as unknown as MasterDelegate<NamedRow>;
+  }
+
+  protected async usage(db: Db, id: string): Promise<Usage[]> {
+    return [['payment', 'payments', await db.payment.count({ where: { bankId: id } })]];
   }
 }

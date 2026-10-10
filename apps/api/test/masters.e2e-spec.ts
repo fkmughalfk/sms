@@ -121,10 +121,72 @@ describe('masters (e2e)', () => {
       );
       expect(res.body.message).toBe('Select an active city.');
     });
+  });
 
-    it('records are never deleted (no DELETE route)', async () => {
-      const city = await create('cities', { name: 'Permanent' });
-      await as.SUPER_ADMIN.delete(`/api/v1/cities/${city.id}`).expect(404);
+  describe('delete (only when unused — CLAUDE.md rule 6)', () => {
+    it('an unused record can be deleted by ADMIN, not by USER, and the delete is audited', async () => {
+      const city = await create('cities', { name: 'Typo City' });
+      await as.USER.delete(`/api/v1/cities/${city.id}`).expect(403);
+      await as.ADMIN.delete(`/api/v1/cities/${city.id}`).expect(204);
+      await as.ADMIN.get(`/api/v1/cities/${city.id}`).expect(404);
+      await as.ADMIN.delete(`/api/v1/cities/${city.id}`).expect(404);
+      const log = await t.prisma.auditLog.findFirst({
+        where: { entity: 'City', entityId: city.id, action: 'DELETE' },
+      });
+      expect(log?.before).toMatchObject({ name: 'Typo City' });
+    });
+
+    it('a record in use is refused with 409 and stays put', async () => {
+      const city = await create('cities', { name: 'Busy City' });
+      const party = await create('parties', { name: 'Busy Party', cityId: city.id });
+      await create('sub-parties', { name: 'Busy Branch', partyId: party.id });
+
+      const res = await as.ADMIN.delete(`/api/v1/cities/${city.id}`).expect(409);
+      expect(res.body.message).toBe(
+        '“Busy City” is used on 1 party, so it can’t be deleted. Deactivate it instead.',
+      );
+      const partyRes = await as.ADMIN.delete(`/api/v1/parties/${party.id}`).expect(409);
+      expect(partyRes.body.message).toContain('1 sub-party');
+      await as.ADMIN.get(`/api/v1/cities/${city.id}`).expect(200);
+    });
+
+    it('products used on an invoice — even a deleted one — cannot be deleted', async () => {
+      const cat = await create('categories', { name: 'Del Cat' });
+      const product = await create('products', {
+        sku: 9901,
+        name: 'Del Rice',
+        unitWeightKg: '25',
+        categoryId: cat.id,
+      });
+      const party = await create('parties', { name: 'Del Party' });
+      const inv = await as.ADMIN.post('/api/v1/invoices')
+        .send({
+          invoiceNo: 9901,
+          invoiceDate: '2026-09-01',
+          partyId: party.id,
+          lines: [{ productId: product.id, qtyPacks: 1, rate40Kg: 8000 }],
+        })
+        .expect(201);
+      await as.ADMIN.delete(`/api/v1/invoices/${inv.body.id}`).expect(204);
+
+      const res = await as.ADMIN.delete(`/api/v1/products/${product.id}`).expect(409);
+      expect(res.body.message).toContain('1 invoice line');
+      await as.ADMIN.delete(`/api/v1/categories/${cat.id}`).expect(409);
+      await as.ADMIN.delete(`/api/v1/parties/${party.id}`).expect(409);
+    });
+
+    it('every master has the route', async () => {
+      for (const path of [
+        'categories',
+        'products',
+        'parties',
+        'sub-parties',
+        'cities',
+        'salespersons',
+        'banks',
+      ]) {
+        await as.ADMIN.delete(`/api/v1/${path}/missing-id`).expect(404);
+      }
     });
   });
 

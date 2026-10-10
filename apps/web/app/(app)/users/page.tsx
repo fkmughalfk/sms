@@ -10,19 +10,13 @@ import {
   userSchema,
 } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Users } from 'lucide-react';
+import { Eye, KeyRound, Pencil, Plus, Power, Trash2, UserRound, Users } from 'lucide-react';
 import { useDeferredValue, useState } from 'react';
 import { toast } from 'sonner';
 import { ResetPasswordDialog } from './reset-password-dialog';
 import { UserDialog } from './user-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -47,6 +41,9 @@ import { ROLE_LABELS } from '@/lib/roles';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { RowActions } from '@/components/data-table/row-actions';
+import { DeleteDialog } from '@/components/delete-dialog';
+import { DetailsDialog } from '@/components/details-dialog';
 
 const ALL = 'all';
 
@@ -64,6 +61,8 @@ export default function UsersPage() {
   const [status, setStatus] = useState<string>('true');
   const [editing, setEditing] = useState<User | 'new' | null>(null);
   const [resetting, setResetting] = useState<User | null>(null);
+  const [viewing, setViewing] = useState<User | null>(null);
+  const [deleting, setDeleting] = useState<User | null>(null);
   const deferredSearch = useDeferredValue(search.trim());
 
   const filterQuery = new URLSearchParams();
@@ -229,33 +228,38 @@ export default function UsersPage() {
                     {u.lastLoginAt ? dateTime.format(new Date(u.lastLoginAt)) : '—'}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={!manageable}
-                          aria-label={`Actions for ${u.name}`}
-                        >
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(u)}>
-                          <Pencil /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => setResetting(u)}>
-                          <KeyRound /> Reset password
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={u.id === me.id}
-                          onSelect={() => toggleStatus.mutate(u)}
-                          variant={u.isActive ? 'destructive' : 'default'}
-                        >
-                          <Power /> {u.isActive ? 'Deactivate' : 'Activate'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <RowActions
+                      label={u.name}
+                      actions={[
+                        { label: 'View', icon: Eye, onSelect: () => setViewing(u) },
+                        {
+                          label: 'Edit',
+                          icon: Pencil,
+                          onSelect: () => setEditing(u),
+                          show: manageable,
+                        },
+                        {
+                          label: 'Reset password',
+                          icon: KeyRound,
+                          onSelect: () => setResetting(u),
+                          show: manageable,
+                        },
+                        {
+                          label: u.isActive ? 'Deactivate' : 'Activate',
+                          icon: Power,
+                          onSelect: () => toggleStatus.mutate(u),
+                          destructive: u.isActive,
+                          show: manageable && u.id !== me.id,
+                        },
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          onSelect: () => setDeleting(u),
+                          destructive: true,
+                          show: manageable && u.id !== me.id,
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               );
@@ -282,6 +286,74 @@ export default function UsersPage() {
         assignableRoles={assignableRoles as Role[]}
       />
       <ResetPasswordDialog user={resetting} onOpenChange={(open) => !open && setResetting(null)} />
+      <DetailsDialog
+        open={viewing !== null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={viewing?.name}
+        description={viewing?.email}
+        icon={UserRound}
+        tone="fuchsia"
+        items={
+          viewing
+            ? [
+                { label: 'Name', value: viewing.name },
+                { label: 'Email', value: viewing.email },
+                {
+                  label: 'Role',
+                  value: (
+                    <Badge
+                      variant={
+                        viewing.role === 'SUPER_ADMIN'
+                          ? 'violet'
+                          : viewing.role === 'ADMIN'
+                            ? 'info'
+                            : 'secondary'
+                      }
+                    >
+                      {ROLE_LABELS[viewing.role]}
+                    </Badge>
+                  ),
+                },
+                {
+                  label: 'Status',
+                  value: (
+                    <Badge variant={viewing.isActive ? 'success' : 'danger'}>
+                      {viewing.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  ),
+                },
+                { label: 'Linked salesperson', value: viewing.salesperson?.name },
+                {
+                  label: 'Last login',
+                  value: viewing.lastLoginAt && dateTime.format(new Date(viewing.lastLoginAt)),
+                },
+                { label: 'Created', value: dateTime.format(new Date(viewing.createdAt)) },
+              ]
+            : []
+        }
+        actions={
+          viewing &&
+          canManageRole(me.role, viewing.role) && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setEditing(viewing);
+                setViewing(null);
+              }}
+            >
+              <Pencil /> Edit
+            </Button>
+          )
+        }
+      />
+      <DeleteDialog
+        path={deleting && `/users/${deleting.id}`}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Delete ${deleting?.name}?`}
+        description="This removes the account for good. Accounts that have logged in or entered any records can't be deleted — deactivate them instead."
+        successMessage={`${deleting?.name} deleted.`}
+        invalidate={[['users']]}
+      />
     </div>
   );
 }

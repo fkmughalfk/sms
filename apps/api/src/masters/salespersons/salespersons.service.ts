@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { SalespersonInput, SalespersonRow } from '@sms/shared';
 import { byFields } from '../../common/sorting';
-import { type Db, type MasterDelegate, MasterService } from '../master.service';
+import { type Db, type MasterDelegate, MasterService, type Usage } from '../master.service';
 
 @Injectable()
 export class SalespersonsService extends MasterService<
@@ -15,5 +15,12 @@ export class SalespersonsService extends MasterService<
   protected override readonly sortColumns = byFields('phone');
   protected delegate(db: Db) {
     return db.salesperson as unknown as MasterDelegate<SalespersonRow>;
+  }
+
+  protected async usage(db: Db, id: string): Promise<Usage[]> {
+    return [
+      ['invoice', 'invoices', await db.invoice.count({ where: { salespersonId: id } })],
+      ['user', 'users', await db.user.count({ where: { salespersonId: id } })],
+    ];
   }
 }

@@ -16,7 +16,7 @@ import {
   productOptionSchema,
 } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Download, Plus, X, FileText } from 'lucide-react';
+import { Download, Eye, FileText, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -30,6 +30,7 @@ import {
   TableBody,
   TableCell,
   TableFooter,
+  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
@@ -43,6 +44,8 @@ import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { cn } from '@/lib/utils';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { RowActions } from '@/components/data-table/row-actions';
+import { DeleteDialog } from '@/components/delete-dialog';
 
 interface Filters {
   month: string;
@@ -92,6 +95,11 @@ export default function InvoicesPage() {
   const [view, setView] = useState<'invoices' | 'lines'>('invoices');
   const [filters, setFilters] = useState(initialFilters);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState<{
+    id: string;
+    invoiceNo: number;
+    lineCount: number;
+  } | null>(null);
   const deferred = useDeferredValue(filters);
 
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
@@ -340,10 +348,11 @@ export default function InvoicesPage() {
                 >
                   Commission
                 </SortableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              <StatusRows query={invoices} colSpan={9} />
+              <StatusRows query={invoices} colSpan={10} />
               {invoices.data?.data.map((inv) => (
                 <TableRow
                   key={inv.id}
@@ -372,6 +381,36 @@ export default function InvoicesPage() {
                   </TableCell>
                   <TableCell className="hidden text-right tabular-nums md:table-cell">
                     {formatCommission(inv.totalCommission)}
+                  </TableCell>
+                  <TableCell>
+                    <RowActions
+                      label={`invoice ${inv.invoiceNo}`}
+                      actions={[
+                        {
+                          label: 'View',
+                          icon: Eye,
+                          onSelect: () => router.push(`/invoices/${inv.id}`),
+                        },
+                        {
+                          label: 'Edit',
+                          icon: Pencil,
+                          onSelect: () => router.push(`/invoices/${inv.id}/edit`),
+                          show: can('invoice.editAny') || can('invoice.editOwn'),
+                        },
+                        {
+                          label: 'Print',
+                          icon: Printer,
+                          onSelect: () => router.push(`/invoices/${inv.id}/print`),
+                        },
+                        {
+                          label: 'Delete',
+                          icon: Trash2,
+                          onSelect: () => setDeleting(inv),
+                          destructive: true,
+                          show: can('invoice.delete'),
+                        },
+                      ]}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -540,6 +579,15 @@ export default function InvoicesPage() {
       )}
 
       {totals && <TotalsPanel totals={totals} />}
+
+      <DeleteDialog
+        path={deleting && `/invoices/${deleting.id}`}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Delete invoice ${deleting?.invoiceNo}?`}
+        description={`Delete all ${deleting?.lineCount} line(s) of invoice ${deleting?.invoiceNo}? It will disappear from lists and totals; the number stays reserved.`}
+        successMessage={`Invoice ${deleting?.invoiceNo} deleted.`}
+        invalidate={[['invoices'], ['reports'], ['recovery']]}
+      />
     </div>
   );
 }

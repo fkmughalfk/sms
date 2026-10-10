@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -69,6 +70,13 @@ export class UsersController {
     @ClientIp() ip: string | null,
   ) {
     return this.users.setStatus(actor, id, body.isActive, ip);
+  }
+
+  /** Only accounts with no activity; everyone else is deactivated instead (409). */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@CurrentUser() actor: AuthUser, @Param('id') id: string, @ClientIp() ip: string | null) {
+    return this.users.remove(actor, id, ip);
   }
 
   @Post(':id/reset-password')

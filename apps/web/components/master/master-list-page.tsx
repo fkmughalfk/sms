@@ -4,10 +4,11 @@ import type { Paginated, Permission } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
-  MoreHorizontal,
+  Eye,
   Pencil,
   Plus,
   Power,
+  Trash2,
   Building2,
   Landmark,
   MapPin,
@@ -23,12 +24,6 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -54,6 +49,9 @@ import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { RowActions } from '@/components/data-table/row-actions';
+import { DeleteDialog } from '@/components/delete-dialog';
+import { DetailsDialog } from '@/components/details-dialog';
 
 export interface Column<Row> {
   header: string;
@@ -74,10 +72,6 @@ interface BaseRow {
 const ALL = 'all';
 const statusResponse = z.object({ id: z.string(), name: z.string(), isActive: z.boolean() });
 
-/**
- * List screen shared by every master (spec §5.6): search, active filter, pagination,
- * edit and activate/deactivate. Rows are read-only without `managePermission`.
- */
 const MASTER_ICONS: Record<string, LucideIcon> = {
   products: Package,
   categories: Tags,
@@ -88,6 +82,11 @@ const MASTER_ICONS: Record<string, LucideIcon> = {
   banks: Landmark,
 };
 
+/**
+ * List screen shared by every master (spec §5.6): search, active filter, pagination,
+ * view, edit, activate/deactivate and delete (the API refuses records in use).
+ * Rows are view-only without `managePermission`.
+ */
 export function MasterListPage<Row extends BaseRow>({
   title,
   description,
@@ -122,6 +121,10 @@ export function MasterListPage<Row extends BaseRow>({
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('true');
   const [editing, setEditing] = useState<Row | 'new' | null>(null);
+  const [viewing, setViewing] = useState<Row | null>(null);
+  const [deleting, setDeleting] = useState<Row | null>(null);
+  const icon = MASTER_ICONS[path] ?? Building2;
+  const noun = title.toLowerCase().replace(/ies$/, 'y').replace(/s$/, '');
   const deferredSearch = useDeferredValue(search.trim());
 
   const filterQuery = new URLSearchParams();
@@ -159,7 +162,7 @@ export function MasterListPage<Row extends BaseRow>({
           >
             <ArrowLeft className="size-3" /> Masters
           </Link>
-          <PageHeading icon={MASTER_ICONS[path] ?? Building2} tone="amber">
+          <PageHeading icon={icon} tone="amber">
             {title}
           </PageHeading>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
@@ -261,26 +264,31 @@ export function MasterListPage<Row extends BaseRow>({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {canManage && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Actions for ${row.name}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(row)}>
-                          <Pencil /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onSelect={() => toggle.mutate(row)}
-                          variant={row.isActive ? 'destructive' : 'default'}
-                        >
-                          <Power /> {row.isActive ? 'Deactivate' : 'Activate'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
+                  <RowActions
+                    label={row.name}
+                    actions={[
+                      { label: 'View', icon: Eye, onSelect: () => setViewing(row) },
+                      {
+                        label: 'Edit',
+                        icon: Pencil,
+                        onSelect: () => setEditing(row),
+                        show: canManage,
+                      },
+                      {
+                        label: row.isActive ? 'Deactivate' : 'Activate',
+                        icon: Power,
+                        onSelect: () => toggle.mutate(row),
+                        show: canManage,
+                      },
+                      {
+                        label: 'Delete',
+                        icon: Trash2,
+                        onSelect: () => setDeleting(row),
+                        destructive: true,
+                        show: canManage,
+                      },
+                    ]}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -298,6 +306,53 @@ export function MasterListPage<Row extends BaseRow>({
           noun="records"
         />
       )}
+
+      <DetailsDialog
+        open={viewing !== null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={viewing?.name}
+        description={title.replace(/ies$/, 'y').replace(/s$/, '')}
+        icon={icon}
+        tone="amber"
+        items={
+          viewing
+            ? [
+                ...columns.map((c) => ({ label: c.header, value: c.cell(viewing) })),
+                {
+                  label: 'Status',
+                  value: (
+                    <Badge variant={viewing.isActive ? 'success' : 'danger'}>
+                      {viewing.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  ),
+                },
+              ]
+            : []
+        }
+        actions={
+          canManage &&
+          viewing && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setEditing(viewing);
+                setViewing(null);
+              }}
+            >
+              <Pencil /> Edit
+            </Button>
+          )
+        }
+      />
+
+      <DeleteDialog
+        path={deleting && `/${path}/${deleting.id}`}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Delete ${deleting?.name}?`}
+        description={`This removes the ${noun} for good. If it is used on any invoice, payment or other record it can't be deleted — deactivate it instead.`}
+        successMessage={`${deleting?.name} deleted.`}
+        invalidate={[masterKey(path)]}
+      />
 
       {canManage &&
         renderDialog({

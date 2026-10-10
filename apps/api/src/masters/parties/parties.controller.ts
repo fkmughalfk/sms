@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   type AuthUser,
   type PartyInput,
@@ -66,5 +77,13 @@ export class PartiesController {
     @ClientIp() ip: string | null,
   ) {
     return this.service.setStatus(actor, id, body.isActive, ip);
+  }
+
+  /** Only records nothing uses; anything referenced must be deactivated instead (409). */
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RequirePermission('masters.manage')
+  remove(@CurrentUser() actor: AuthUser, @Param('id') id: string, @ClientIp() ip: string | null) {
+    return this.service.remove(actor, id, ip);
   }
 }

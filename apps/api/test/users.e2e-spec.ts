@@ -172,6 +172,27 @@ describe('users & permission matrix (e2e)', () => {
       expect(res.body.data.every((u: { role: string }) => u.role === 'ADMIN')).toBe(true);
     });
 
+    it('delete: only accounts with no activity; never yourself', async () => {
+      const fresh = (await as.SUPER_ADMIN.post('/api/v1/users').send(newUser('USER')).expect(201))
+        .body as { id: string };
+      await as.USER.delete(`/api/v1/users/${fresh.id}`).expect(403);
+      await as.ADMIN.delete(`/api/v1/users/${fresh.id}`).expect(204);
+      await as.ADMIN.get(`/api/v1/users/${fresh.id}`).expect(404);
+
+      // ADMIN cannot delete an admin; nobody deletes themselves.
+      await as.ADMIN.delete(`/api/v1/users/${ids.super}`).expect(403);
+      await as.SUPER_ADMIN.delete(`/api/v1/users/${ids.super}`).expect(400);
+
+      // Logged in once → has history → deactivate instead.
+      const res = await as.SUPER_ADMIN.delete(`/api/v1/users/${ids.user}`).expect(409);
+      expect(res.body.message).toMatch(/logged action.*Deactivate it instead\.$/);
+      expect(
+        await t.prisma.auditLog.count({
+          where: { entity: 'User', action: 'DELETE', entityId: fresh.id },
+        }),
+      ).toBe(1);
+    });
+
     it('rejects an unknown salesperson link with 400', async () => {
       await as.ADMIN.post('/api/v1/users')
         .send({ ...newUser('USER'), salespersonId: 'does-not-exist' })

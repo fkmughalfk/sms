@@ -43,10 +43,10 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/settings',
     icon: Settings,
     permission: 'settings.manage',
-    ready: false,
+    ready: true,
   },
   { label: 'Import', href: '/import', icon: Upload, permission: 'import.run', ready: true },
-  { label: 'Audit', href: '/audit', icon: ScrollText, permission: 'audit.view', ready: false },
+  { label: 'Audit', href: '/audit', icon: ScrollText, permission: 'audit.view', ready: true },
 ];
 
 /** Permission required for a path, from the longest matching nav prefix. */

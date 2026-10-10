@@ -8,9 +8,8 @@ import { Button } from '@/components/ui/button';
 import { UserMenu } from '@/components/user-menu';
 import { useAuth } from '@/lib/auth';
 import { NAV_ITEMS, permissionForPath } from '@/lib/nav';
+import { useSettings } from '@/lib/use-invoice';
 import { cn } from '@/lib/utils';
-
-const COMPANY_NAME = 'WAQAR RICE MILLS'; // From Settings once that screen exists (phase 8).
 
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -64,6 +63,7 @@ function Forbidden() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { can } = useAuth();
+  const settings = useSettings();
   const [mobileOpen, setMobileOpen] = useState(false);
   const required = permissionForPath(pathname);
 
@@ -106,7 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Menu />
           </Button>
           <span className="flex-1 truncate text-sm font-semibold tracking-wide">
-            {COMPANY_NAME}
+            {settings.data?.companyName ?? 'WAQAR RICE MILLS'}
           </span>
           <UserMenu />
         </header>

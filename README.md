@@ -60,6 +60,19 @@ so auth cookies stay same-origin.
   `apps/api/src/generated` (git-ignored, created on `pnpm install`).
 - **`@nestjs/jwt` is pinned to 11.x** — 12.x is ESM-only and Jest can't load it.
 
+## CI
+
+`.github/workflows/ci.yml` runs `pnpm lint`, `pnpm typecheck`, `pnpm test` (unit + API e2e on in-memory
+PGlite, so no database service) and `pnpm build` on every push to `main` and every pull request.
+
+Migrations are applied by the **api** project's Vercel production build (`scripts/vercel-migrate.mjs`),
+not by CI: the Neon connection strings live only in Vercel, and preview builds never migrate.
+
+## API docs
+
+Outside production the API serves Swagger UI at `http://localhost:4000/api/docs`. Request bodies are
+validated by the zod schemas in `packages/shared/src/schemas`, which are the reference for payloads.
+
 ## Importing the old Excel workbook
 
 Super Admin → **Import** (or the CLI). Always check first; nothing is written until you import.

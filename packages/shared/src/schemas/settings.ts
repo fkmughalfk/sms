@@ -8,12 +8,16 @@ export const updateSettingsSchema = z
     companyAddress: optionalTextSchema(500),
     defaultCommissionRate: commissionRateSchema,
     annualSalesTarget: decimalSchema({ maxDecimals: 2, min: 0, message: 'Enter a valid target.' }),
-    fiscalYearStartMonth: z.number().int().min(1).max(12),
-    userEditWindowHours: z
-      .number()
+    fiscalYearStartMonth: z.coerce
+      .number({ error: 'Choose a month.' })
       .int()
-      .min(0)
-      .max(24 * 30),
+      .min(1, 'Choose a month.')
+      .max(12, 'Choose a month.'),
+    userEditWindowHours: z.coerce
+      .number({ error: 'Enter hours (0–720).' })
+      .int('Enter whole hours.')
+      .min(0, 'Enter hours (0–720).')
+      .max(24 * 30, 'Enter hours (0–720).'),
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;

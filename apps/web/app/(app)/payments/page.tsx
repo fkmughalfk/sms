@@ -9,7 +9,7 @@ import {
   paymentListSchema,
 } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, MoreHorizontal, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Download, MoreHorizontal, Pencil, Plus, Trash2, X, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -40,6 +40,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
+import { PageHeading } from '@/components/form-section';
 
 interface Filters {
   month: string;
@@ -136,7 +137,9 @@ export default function PaymentsPage() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Payments</h1>
+          <PageHeading icon={Wallet} tone="emerald">
+            Payments
+          </PageHeading>
           <p className="text-sm text-muted-foreground">
             {heading}
             {!can('reports.viewAll') && ' · payments you recorded'}
@@ -158,7 +161,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 rounded-xl border border-l-4 border-l-emerald-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Month">
           <Input
             type="month"
@@ -201,7 +204,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

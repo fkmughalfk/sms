@@ -10,7 +10,7 @@ import {
   userSchema,
 } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { KeyRound, MoreHorizontal, Pencil, Plus, Power } from 'lucide-react';
+import { KeyRound, MoreHorizontal, Pencil, Plus, Power, Users } from 'lucide-react';
 import { useDeferredValue, useState } from 'react';
 import { toast } from 'sonner';
 import { ResetPasswordDialog } from './reset-password-dialog';
@@ -45,6 +45,7 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ROLE_LABELS } from '@/lib/roles';
 import { useTableState } from '@/lib/use-table';
+import { PageHeading } from '@/components/form-section';
 
 const ALL = 'all';
 
@@ -93,7 +94,9 @@ export default function UsersPage() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Users</h1>
+          <PageHeading icon={Users} tone="fuchsia">
+            Users
+          </PageHeading>
           <p className="text-sm text-muted-foreground">
             {me.role === 'SUPER_ADMIN'
               ? 'Manage admins and users.'
@@ -137,7 +140,7 @@ export default function UsersPage() {
         </Select>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -204,12 +207,20 @@ export default function UsersPage() {
                   </TableCell>
                   <TableCell>{u.email}</TableCell>
                   <TableCell>
-                    <Badge variant={u.role === 'USER' ? 'secondary' : 'default'}>
+                    <Badge
+                      variant={
+                        u.role === 'SUPER_ADMIN'
+                          ? 'violet'
+                          : u.role === 'ADMIN'
+                            ? 'info'
+                            : 'secondary'
+                      }
+                    >
                       {ROLE_LABELS[u.role]}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={u.isActive ? 'outline' : 'destructive'}>
+                    <Badge variant={u.isActive ? 'success' : 'danger'}>
                       {u.isActive ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>

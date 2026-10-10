@@ -20,6 +20,7 @@ import {
   Gauge,
   HandCoins,
   Hourglass,
+  LayoutDashboard,
   Receipt,
   Weight,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ import { DailyTrendChart, MonthlyTargetChart } from '@/components/reports/trend-
 import { periodDays, usePeriod, useReport } from '@/lib/reports';
 import { useSettings } from '@/lib/use-invoice';
 import { cn } from '@/lib/utils';
+import { PageHeading } from '@/components/form-section';
 
 const TOP = 10;
 
@@ -64,7 +66,7 @@ function DashboardContent() {
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <PageHeading icon={LayoutDashboard}>Dashboard</PageHeading>
           {d?.scoped && (
             <p className="text-sm text-muted-foreground">Showing your own invoices and payments.</p>
           )}

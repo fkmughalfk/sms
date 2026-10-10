@@ -9,7 +9,7 @@ import {
   type PartyMapping,
 } from '@sms/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Check, FileSpreadsheet, X } from 'lucide-react';
+import { AlertTriangle, Check, FileSpreadsheet, X, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/table';
 import { api, ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { PageHeading } from '@/components/form-section';
 
 const NO_BANK = '__none__';
 
@@ -42,10 +43,17 @@ function Card({ title, children, tone }: { title: string; children: ReactNode; t
   return (
     <section
       className={cn(
-        'grid min-w-0 grid-cols-1 gap-3 rounded-lg border bg-card p-4',
+        'relative grid min-w-0 grid-cols-1 gap-3 overflow-hidden rounded-xl border bg-card p-4 pt-5 shadow-sm',
         tone === 'warn' && 'border-amber-500/60',
       )}
     >
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-x-0 top-0 h-1 bg-gradient-to-r',
+          tone === 'warn' ? 'from-amber-400 to-orange-500' : 'from-emerald-500 to-teal-500',
+        )}
+      />
       <h2 className="text-sm font-semibold">{title}</h2>
       {children}
     </section>
@@ -130,7 +138,9 @@ export default function ImportPage() {
   return (
     <div className="grid min-w-0 max-w-5xl grid-cols-1 gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Import from Excel</h1>
+        <PageHeading icon={Upload} tone="emerald">
+          Import from Excel
+        </PageHeading>
         <p className="text-sm text-muted-foreground">
           Loads products, lists, invoices (Database sheet) and payments (Payments + Sheet1) from the
           old workbook. Check first — nothing is written until you press Import. Running it again

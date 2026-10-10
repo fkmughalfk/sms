@@ -83,3 +83,24 @@ export function FormSection({
     </section>
   );
 }
+
+/**
+ * Page `<h1>` with a coloured icon chip. A subtitle `<p>` right after it lines up with the
+ * title text (see `[data-page-heading] + p` in globals.css).
+ */
+export function PageHeading({
+  icon,
+  tone = 'indigo',
+  children,
+}: {
+  icon: LucideIcon;
+  tone?: Tone;
+  children: ReactNode;
+}) {
+  return (
+    <h1 data-page-heading className="flex items-center gap-3 text-2xl font-bold tracking-tight">
+      <IconChip icon={icon} tone={tone} size="lg" />
+      <span className="min-w-0 truncate">{children}</span>
+    </h1>
+  );
+}

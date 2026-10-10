@@ -7,6 +7,7 @@ import {
   settingsSchema,
   updateSettingsSchema,
 } from '@sms/shared';
+import { SlidersHorizontal, Building2, Target } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -24,6 +25,7 @@ import {
 import { api, ApiError } from '@/lib/api';
 import { percentRateSchema, rateToPercent } from '@/lib/masters';
 import { useSettings } from '@/lib/use-invoice';
+import { FormSection, PageHeading } from '@/components/form-section';
 
 const MONTHS = [
   'January',
@@ -120,14 +122,15 @@ function SettingsForm({ settings }: { settings: Settings }) {
   return (
     <div className="grid max-w-2xl gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Settings</h1>
+        <PageHeading icon={SlidersHorizontal} tone="sky">
+          Settings
+        </PageHeading>
         <p className="text-sm text-muted-foreground">Company details, rates and targets.</p>
       </div>
 
       <form onSubmit={onSubmit} className="grid gap-6" noValidate>
-        <section className="grid gap-4 rounded-lg border bg-card p-4">
-          <h2 className="text-sm font-semibold">Company</h2>
-          <p className="-mt-2 text-xs text-muted-foreground">
+        <FormSection title="Company" icon={Building2} className="grid gap-4">
+          <p className="-mt-1 text-xs text-muted-foreground">
             Shown in the header and on printed invoices and ledgers.
           </p>
           <FormField id="companyName" label="Company name" error={err('companyName')}>
@@ -136,10 +139,9 @@ function SettingsForm({ settings }: { settings: Settings }) {
           <FormField id="companyAddress" label="Address" error={err('companyAddress')}>
             <Input id="companyAddress" {...form.register('companyAddress')} />
           </FormField>
-        </section>
+        </FormSection>
 
-        <section className="grid gap-4 rounded-lg border bg-card p-4">
-          <h2 className="text-sm font-semibold">Sales</h2>
+        <FormSection title="Sales" icon={Target} tone="emerald" className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField
               id="defaultCommissionPercent"
@@ -208,7 +210,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
               />
             </FormField>
           </div>
-        </section>
+        </FormSection>
 
         <div className="flex gap-2">
           <Button type="submit" disabled={save.isPending || !form.formState.isDirty}>

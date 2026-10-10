@@ -16,7 +16,7 @@ import {
   productOptionSchema,
 } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Download, Plus, X } from 'lucide-react';
+import { Download, Plus, X, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -40,6 +40,8 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
+import { PageHeading } from '@/components/form-section';
+import { cn } from '@/lib/utils';
 
 interface Filters {
   month: string;
@@ -146,7 +148,9 @@ export default function InvoicesPage() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Invoices</h1>
+          <PageHeading icon={FileText} tone="indigo">
+            Invoices
+          </PageHeading>
           <p className="text-sm text-muted-foreground">{heading}</p>
         </div>
         <div className="flex gap-2">
@@ -166,7 +170,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 rounded-xl border border-l-4 border-l-indigo-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Month">
           <Input
             type="month"
@@ -251,7 +255,7 @@ export default function InvoicesPage() {
         </TabsList>
       </Tabs>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         {view === 'invoices' ? (
           <Table>
             <TableHeader>
@@ -572,6 +576,17 @@ function StatusRows({
   );
 }
 
+/** Soft tinted backgrounds for the totals tiles (label takes the tint, value stays in ink). */
+const TILE_TINTS = [
+  'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300',
+  'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300',
+  'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300',
+  'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 dark:border-fuchsia-500/30 dark:bg-fuchsia-500/10 dark:text-fuchsia-300',
+  'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300',
+  'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
+  'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300',
+];
+
 /** Database Q5:R10 — Weight (Tons), Total Sale, Commission, Total Packs, Avg per Ton, Avg per Pack. */
 function TotalsPanel({ totals }: { totals: InvoiceTotals }) {
   const items: [string, string][] = [
@@ -584,11 +599,14 @@ function TotalsPanel({ totals }: { totals: InvoiceTotals }) {
     ['Avg per Pack', formatPKR2(totals.avgPerPack)],
   ];
   return (
-    <dl className="grid grid-cols-2 gap-3 rounded-lg border p-4 sm:grid-cols-4 lg:grid-cols-7">
-      {items.map(([label, value]) => (
-        <div key={label}>
-          <dt className="text-xs text-muted-foreground">{label}</dt>
-          <dd className="text-sm font-semibold tabular-nums">{value}</dd>
+    <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      {items.map(([label, value], i) => (
+        <div
+          key={label}
+          className={cn('rounded-xl border p-3 shadow-sm', TILE_TINTS[i % TILE_TINTS.length])}
+        >
+          <dt className="text-xs font-medium opacity-80">{label}</dt>
+          <dd className="text-sm font-bold text-foreground tabular-nums">{value}</dd>
         </div>
       ))}
     </dl>

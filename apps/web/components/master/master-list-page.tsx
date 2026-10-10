@@ -2,7 +2,21 @@
 
 import type { Paginated, Permission } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, MoreHorizontal, Pencil, Plus, Power } from 'lucide-react';
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Power,
+  Building2,
+  Landmark,
+  MapPin,
+  Package,
+  Tags,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useDeferredValue, useState } from 'react';
 import { toast } from 'sonner';
@@ -38,6 +52,7 @@ import { useAuth } from '@/lib/auth';
 import { masterKey } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
+import { PageHeading } from '@/components/form-section';
 
 export interface Column<Row> {
   header: string;
@@ -62,6 +77,16 @@ const statusResponse = z.object({ id: z.string(), name: z.string(), isActive: z.
  * List screen shared by every master (spec §5.6): search, active filter, pagination,
  * edit and activate/deactivate. Rows are read-only without `managePermission`.
  */
+const MASTER_ICONS: Record<string, LucideIcon> = {
+  products: Package,
+  categories: Tags,
+  parties: Building2,
+  'sub-parties': Users,
+  cities: MapPin,
+  salespersons: UserRound,
+  banks: Landmark,
+};
+
 export function MasterListPage<Row extends BaseRow>({
   title,
   description,
@@ -133,7 +158,9 @@ export function MasterListPage<Row extends BaseRow>({
           >
             <ArrowLeft className="size-3" /> Masters
           </Link>
-          <h1 className="text-xl font-semibold">{title}</h1>
+          <PageHeading icon={MASTER_ICONS[path] ?? Building2} tone="amber">
+            {title}
+          </PageHeading>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
         {canManage && (
@@ -163,7 +190,7 @@ export function MasterListPage<Row extends BaseRow>({
         {filters}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -228,7 +255,7 @@ export function MasterListPage<Row extends BaseRow>({
                   </TableCell>
                 ))}
                 <TableCell>
-                  <Badge variant={row.isActive ? 'outline' : 'destructive'}>
+                  <Badge variant={row.isActive ? 'success' : 'danger'}>
                     {row.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </TableCell>

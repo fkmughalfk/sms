@@ -4,6 +4,7 @@ import { Building2, Landmark, MapPin, Package, Tags, UserRound, Users } from 'lu
 import Link from 'next/link';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth';
+import { PageHeading } from '@/components/form-section';
 
 const MASTERS = [
   {
@@ -50,7 +51,9 @@ export default function MastersPage() {
   return (
     <div className="grid gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Masters</h1>
+        <PageHeading icon={Building2} tone="amber">
+          Masters
+        </PageHeading>
         <p className="text-sm text-muted-foreground">
           {can('masters.manage')
             ? 'Lists used across invoices and payments.'

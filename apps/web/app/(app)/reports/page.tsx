@@ -6,7 +6,7 @@ import {
   salesBreakdownSchema,
   trendSchema,
 } from '@sms/shared';
-import { Printer } from 'lucide-react';
+import { Printer, BarChart3 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { CategoryShare } from '@/components/reports/category-share';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type Period, periodDays, usePeriod, useReport } from '@/lib/reports';
 import { useSettings } from '@/lib/use-invoice';
+import { PageHeading } from '@/components/form-section';
 
 const TABS = [
   { id: 'category', label: 'Category' },
@@ -158,7 +159,9 @@ function ReportsContent() {
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Reports</h1>
+          <PageHeading icon={BarChart3} tone="sky">
+            Reports
+          </PageHeading>
           <p className="text-sm text-muted-foreground">Full breakdowns behind the dashboard.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">

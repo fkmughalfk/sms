@@ -115,3 +115,8 @@
     display: none !important;
   }
 }
+
+/* Subtitle under a PageHeading lines up with the title, not the icon chip. */
+[data-page-heading] + p {
+  padding-left: 3.25rem;
+}

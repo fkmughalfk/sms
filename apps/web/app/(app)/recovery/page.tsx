@@ -2,7 +2,7 @@
 
 import { dec, formatPKR2, formatPercent, recoverySummarySchema } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Receipt } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDeferredValue, useState } from 'react';
@@ -24,6 +24,7 @@ import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
+import { PageHeading } from '@/components/form-section';
 
 /** Share bar for "% Recovered" (Payments J20:N…). */
 function RecoveryBar({ rate }: { rate: string }) {
@@ -68,7 +69,9 @@ export default function RecoveryPage() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Recovery</h1>
+          <PageHeading icon={Receipt} tone="rose">
+            Recovery
+          </PageHeading>
           <p className="text-sm text-muted-foreground">
             Outstanding by party. Invoiced includes opening balances.
           </p>
@@ -108,7 +111,7 @@ export default function RecoveryPage() {
         </label>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

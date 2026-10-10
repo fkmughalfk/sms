@@ -10,11 +10,11 @@ import {
   userListSchema,
 } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, X, ScrollText } from 'lucide-react';
 import Link from 'next/link';
 import { Fragment, type ReactNode, useState } from 'react';
 import { Combobox } from '@/components/combobox';
-import { Badge } from '@/components/ui/badge';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -36,6 +36,7 @@ import { SortableHead } from '@/components/data-table/sortable-head';
 import { TablePagination } from '@/components/data-table/table-pagination';
 import { api } from '@/lib/api';
 import { useTableState } from '@/lib/use-table';
+import { PageHeading } from '@/components/form-section';
 
 const ALL = 'all';
 
@@ -45,12 +46,12 @@ const when = new Intl.DateTimeFormat('en-GB', {
   timeStyle: 'short',
 });
 
-const ACTION_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  CREATE: 'default',
-  UPDATE: 'secondary',
-  DELETE: 'destructive',
+const ACTION_VARIANT: Record<string, BadgeVariant> = {
+  CREATE: 'success',
+  UPDATE: 'info',
+  DELETE: 'danger',
   LOGIN: 'outline',
-  IMPORT: 'default',
+  IMPORT: 'violet',
 };
 
 /** Where an entry's record lives in the app, if it has a page. */
@@ -155,13 +156,15 @@ export default function AuditPage() {
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
       <div>
-        <h1 className="text-xl font-semibold">Audit log</h1>
+        <PageHeading icon={ScrollText} tone="amber">
+          Audit log
+        </PageHeading>
         <p className="text-sm text-muted-foreground">
           Every change to invoices, payments, masters, users and settings, plus logins and imports.
         </p>
       </div>
 
-      <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 rounded-xl border border-l-4 border-l-amber-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
         <Field label="What">
           <Select value={entity} onValueChange={setEntity}>
             <SelectTrigger className="w-full">
@@ -228,7 +231,7 @@ export default function AuditPage() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

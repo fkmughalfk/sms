@@ -2,7 +2,7 @@
 
 import { BUSINESS_TIMEZONE } from '@sms/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Pencil, Plus, Printer, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Printer, Trash2, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useInvoice, useSettings } from '@/lib/use-invoice';
+import { PageHeading } from '@/components/form-section';
 
 const stamp = new Intl.DateTimeFormat('en-GB', {
   timeZone: BUSINESS_TIMEZONE,
@@ -52,7 +53,9 @@ export default function InvoicePage() {
           >
             <ArrowLeft className="size-3" /> Invoices
           </Link>
-          <h1 className="text-xl font-semibold">Invoice #{invoice.invoiceNo}</h1>
+          <PageHeading icon={FileText} tone="indigo">
+            Invoice #{invoice.invoiceNo}
+          </PageHeading>
           <p className="text-xs text-muted-foreground">
             Entered by {invoice.createdBy.name} · {stamp.format(new Date(invoice.createdAt))}
           </p>

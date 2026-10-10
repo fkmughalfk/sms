@@ -2,7 +2,7 @@
 
 import { businessToday, dec, formatPKR2, partyLedgerSchema } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Printer } from 'lucide-react';
+import { ArrowLeft, Plus, Printer, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSettings } from '@/lib/use-invoice';
 import { cn } from '@/lib/utils';
+import { PageHeading } from '@/components/form-section';
 
 const toDisplayDate = (d: string) => d.split('-').reverse().join('-');
 
@@ -61,7 +62,9 @@ export default function PartyLedgerPage() {
           >
             <ArrowLeft className="size-3" /> Recovery
           </Link>
-          <h1 className="text-xl font-semibold">{data.party.name}</h1>
+          <PageHeading icon={BookOpen} tone="rose">
+            {data.party.name}
+          </PageHeading>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="grid gap-1 text-xs text-muted-foreground">

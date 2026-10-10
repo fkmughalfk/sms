@@ -107,6 +107,7 @@ export type RecoveryRow = z.infer<typeof recoveryRowSchema>;
 
 export const recoverySummarySchema = z.object({
   data: z.array(recoveryRowSchema),
+  meta: z.object({ page: z.number(), pageSize: z.number(), total: z.number() }),
   totals: z.object({
     parties: z.number(),
     invoiced: z.string(),
@@ -117,7 +118,7 @@ export const recoverySummarySchema = z.object({
 });
 export type RecoverySummary = z.infer<typeof recoverySummarySchema>;
 
-export const recoveryQuerySchema = z.object({
+export const recoveryQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().min(1).optional(),
   cityId: optionalFilterId,
   /** Only parties that still owe money. */

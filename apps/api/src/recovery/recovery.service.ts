@@ -8,15 +8,19 @@ import {
   partyPosition,
   type Position,
   type RecoveryQuery,
+  type RecoveryRow,
   type RecoverySummary,
   recoveryRate,
   sum,
 } from '@sms/shared';
 import { fromDbDate, toDbDate } from '../common/db-date';
+import { parseSort } from '../common/sorting';
 import { nameContains } from '../masters/master-utils';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ref = { select: { id: true, name: true } } as const;
+
+type Row = RecoveryRow;
 const str = (v: { toString(): string } | null | undefined) => v?.toString() ?? '0';
 
 function positionView(party: { id: string; name: string }, p: Position, lastPayment: Date | null) {
@@ -108,16 +112,40 @@ export class RecoveryService {
       })
       // Active parties always; inactive ones only while they have figures.
       .filter((r) => r.isActive || r.hasActivity)
-      .filter((r) => !query.outstandingOnly || r.outstandingDec.gt(0))
-      .sort(
-        (a, b) =>
-          b.outstandingDec.comparedTo(a.outstandingDec) || a.party.name.localeCompare(b.party.name),
-      );
+      .filter((r) => !query.outstandingOnly || r.outstandingDec.gt(0));
+
+    // Sort in memory (one row per party), then page; totals cover every matching party.
+    const { field, dir } = parseSort(query.sort, 'outstanding:desc');
+    const byDecimal =
+      (k: 'invoiced' | 'recovered' | 'outstanding' | 'recoveryRate') => (a: Row, b: Row) =>
+        dec(a[k]).comparedTo(b[k]);
+    const comparers: Record<string, (a: Row, b: Row) => number> = {
+      party: (a, b) => a.party.name.localeCompare(b.party.name),
+      city: (a, b) => (a.city?.name ?? '').localeCompare(b.city?.name ?? ''),
+      invoiced: byDecimal('invoiced'),
+      recovered: byDecimal('recovered'),
+      outstanding: byDecimal('outstanding'),
+      recoveryRate: byDecimal('recoveryRate'),
+      // Parties that never paid sort last either way.
+      lastPaymentDate: (a, b) =>
+        (a.lastPaymentDate ?? (dir === 'asc' ? '9999' : '0000')).localeCompare(
+          b.lastPaymentDate ?? (dir === 'asc' ? '9999' : '0000'),
+        ),
+    };
+    const compare = comparers[field] ?? comparers.outstanding!;
+    const sign = comparers[field] && dir === 'asc' ? 1 : -1;
+    const sorted = [...rows].sort(
+      (a, b) => sign * compare(a, b) || a.party.name.localeCompare(b.party.name),
+    );
+    const start = (query.page - 1) * query.pageSize;
 
     const invoiced = sum(rows.map((r) => r.invoiced));
     const recovered = sum(rows.map((r) => r.recovered));
     return {
-      data: rows.map(({ hasActivity: _a, outstandingDec: _o, ...row }) => row),
+      data: sorted
+        .slice(start, start + query.pageSize)
+        .map(({ hasActivity: _a, outstandingDec: _o, ...row }) => row),
+      meta: { page: query.page, pageSize: query.pageSize, total: rows.length },
       totals: {
         parties: rows.length,
         invoiced: invoiced.toString(),

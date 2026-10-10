@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AuditAction, AuditQuery, AuditEntry as AuditRow, Paginated } from '@sms/shared';
 import { toDbDate } from '../common/db-date';
+import { byFields, orderBy, pageArgs } from '../common/sorting';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -63,9 +64,11 @@ export class AuditService {
     const [rows, total] = await Promise.all([
       this.prisma.auditLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
+        orderBy: orderBy(query.sort, byFields('createdAt', 'action', 'entity'), 'createdAt:desc', [
+          { createdAt: 'desc' },
+          { id: 'asc' },
+        ]),
+        ...pageArgs(query),
       }),
       this.prisma.auditLog.count({ where }),
     ]);

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { SubPartyInput, SubPartyListQuery, SubPartyOption, SubPartyRow } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
+import { byRelationName } from '../../common/sorting';
 import { type Db, type MasterDelegate, MasterService } from '../master.service';
 import { assertActiveRef, nameContains } from '../master-utils';
 
@@ -23,6 +24,7 @@ export class SubPartiesService extends MasterService<
   protected readonly entity = 'SubParty';
   protected readonly label = 'sub-party';
   protected readonly select = select;
+  protected override readonly sortColumns = { party: byRelationName('party') };
 
   protected delegate(db: Db) {
     return db.subParty as unknown as MasterDelegate<Rec>;

@@ -12,8 +12,8 @@ export default function SalespersonsPage() {
       path="salespersons"
       listSchema={salespersonListSchema}
       columns={[
-        { header: 'Name', cell: (r) => r.name },
-        { header: 'Phone', cell: (r) => r.phone ?? '—' },
+        { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
+        { header: 'Phone', cell: (r) => r.phone ?? '—', sortKey: 'phone' },
       ]}
       renderDialog={(props) => (
         <EntityDialog

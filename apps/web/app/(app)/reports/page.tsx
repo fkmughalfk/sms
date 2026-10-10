@@ -67,8 +67,15 @@ function ProductReport({ period }: { period: Period }) {
               header: '#',
               cell: (r) => r.sku ?? '—',
               className: 'hidden w-12 tabular-nums md:table-cell',
+              sortValue: (r) => r.sku,
+              numeric: true,
             },
-            { header: 'Category', cell: (r) => r.category, className: 'hidden md:table-cell' },
+            {
+              header: 'Category',
+              cell: (r) => r.category,
+              className: 'hidden md:table-cell',
+              sortValue: (r) => r.category,
+            },
           ]}
         />
       )}
@@ -91,6 +98,8 @@ function PartyReport({ period }: { period: Period }) {
                 header: 'Invoices',
                 cell: (r) => r.invoices,
                 className: 'hidden text-right md:table-cell',
+                sortValue: (r) => r.invoices,
+                numeric: true,
               },
             ]}
           />

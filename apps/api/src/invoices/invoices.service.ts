@@ -28,7 +28,14 @@ import { invoiceScope } from '../common/data-scope';
 import { dateRangeWhere } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 import type { Db } from '../masters/master.service';
-import { listArgs } from '../masters/master-utils';
+import {
+  byFields,
+  byRelationName,
+  orderBy,
+  pageArgs,
+  type SortColumns,
+  type SortDir,
+} from '../common/sorting';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import {
@@ -53,6 +60,41 @@ interface Snapshot {
 }
 
 type CalculatedLine = InvoiceLineInput & Snapshot & LineResult;
+
+/** Sortable columns of the Invoices view (`?sort=field:dir`). */
+const INVOICE_SORT: SortColumns = {
+  ...byFields(
+    'invoiceNo',
+    'invoiceDate',
+    'totalPacks',
+    'totalWeightKg',
+    'totalAmount',
+    'totalCommission',
+  ),
+  party: byRelationName('party'),
+  city: byRelationName('city'),
+  salesperson: byRelationName('salesperson'),
+};
+
+const viaInvoice = (field: string) => (dir: SortDir) => ({ invoice: { [field]: dir } });
+
+/** Sortable columns of the Lines view. */
+const LINE_SORT: SortColumns = {
+  ...byFields(
+    'qtyPacks',
+    'packWeightKg',
+    'rate40Kg',
+    'ratePerPack',
+    'amount',
+    'commission',
+    'weightKg',
+  ),
+  invoiceNo: viaInvoice('invoiceNo'),
+  invoiceDate: viaInvoice('invoiceDate'),
+  party: (dir) => ({ invoice: { party: { name: dir } } }),
+  product: byRelationName('product'),
+  category: (dir) => ({ product: { category: { name: dir } } }),
+};
 type CalcTotals = Totals;
 
 const lineRowSelect = {
@@ -82,19 +124,12 @@ export class InvoicesService {
 
   async list(user: AuthUser, query: InvoiceListQuery): Promise<InvoiceList> {
     const where = this.invoiceWhere(user, query);
-    const { skip, take, orderBy } = listArgs(
-      query,
-      ['invoiceNo', 'invoiceDate', 'totalAmount'],
-      'invoiceDate',
-    );
-    const desc = !query.sort || query.sort.endsWith(':desc');
     const [rows, total, sums] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
         select: invoiceRowSelect,
-        skip,
-        take,
-        orderBy: [orderBy, { invoiceNo: desc ? 'desc' : 'asc' }],
+        ...pageArgs(query),
+        orderBy: orderBy(query.sort, INVOICE_SORT, 'invoiceDate:desc', [{ invoiceNo: 'desc' }]),
       }),
       this.prisma.invoice.count({ where }),
       this.prisma.invoice.aggregate({
@@ -122,13 +157,12 @@ export class InvoicesService {
       this.prisma.invoiceLine.findMany({
         where,
         select: lineRowSelect,
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-        orderBy: [
-          { invoice: { invoiceDate: 'desc' } },
+        ...pageArgs(query),
+        orderBy: orderBy(query.sort, LINE_SORT, 'invoiceDate:desc', [
           { invoice: { invoiceNo: 'desc' } },
           { lineNo: 'asc' },
-        ],
+          { id: 'asc' },
+        ]),
       }),
       this.prisma.invoiceLine.count({ where }),
       this.prisma.invoiceLine.aggregate({

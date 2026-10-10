@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { PartyInput, PartyListQuery, PartyOption, PartyRow } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
+import { byFields, byRelationName } from '../../common/sorting';
 import { type Db, type MasterDelegate, MasterService } from '../master.service';
 import { assertActiveRef, nameContains } from '../master-utils';
 
@@ -20,6 +21,10 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
   protected readonly entity = 'Party';
   protected readonly label = 'party';
   protected readonly select = select;
+  protected override readonly sortColumns = {
+    ...byFields('phone', 'openingBalance'),
+    city: byRelationName('city'),
+  };
 
   protected delegate(db: Db) {
     return db.party as unknown as MasterDelegate<Rec>;

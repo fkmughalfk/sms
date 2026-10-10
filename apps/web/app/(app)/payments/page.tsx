@@ -35,11 +35,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableHead } from '@/components/data-table/sortable-head';
+import { TablePagination } from '@/components/data-table/table-pagination';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
-
-const PAGE_SIZE = 50;
+import { useTableState } from '@/lib/use-table';
 
 interface Filters {
   month: string;
@@ -81,23 +82,19 @@ export default function PaymentsPage() {
   const queryClient = useQueryClient();
   const { can } = useAuth();
   const [filters, setFilters] = useState(initialFilters);
-  const [page, setPage] = useState(1);
   const [deleting, setDeleting] = useState<PaymentRow | null>(null);
   const [exporting, setExporting] = useState(false);
   const deferred = useDeferredValue(filters);
 
-  const set = <K extends keyof Filters>(key: K, value: Filters[K]) => {
+  const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((f) => ({ ...f, [key]: value }));
-    setPage(1);
-  };
 
   const parties = useMasterOptions('parties', z.array(partyOptionSchema));
   const banks = useMasterOptions('banks');
 
   const params = toParams(deferred);
-  const listParams = new URLSearchParams(params);
-  listParams.set('page', String(page));
-  listParams.set('pageSize', String(PAGE_SIZE));
+  const table = useTableState({ sort: 'paymentDate:desc', resetOn: params.toString() });
+  const listParams = table.apply(new URLSearchParams(params));
 
   const { data, isPending, error } = useQuery({
     queryKey: ['payments', 'list', listParams.toString()],
@@ -135,7 +132,6 @@ export default function PaymentsPage() {
       ? formatMonthHeading(filters.month)
       : 'All dates';
   const total = data?.meta.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="grid gap-4">
@@ -200,14 +196,7 @@ export default function PaymentsPage() {
           />
         </Field>
         <div className="flex items-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setFilters(initialFilters());
-              setPage(1);
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setFilters(initialFilters())}>
             <X /> Reset filters
           </Button>
         </div>
@@ -217,12 +206,46 @@ export default function PaymentsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-28">Date</TableHead>
-              <TableHead>Party</TableHead>
-              <TableHead className="hidden md:table-cell">Sub Party</TableHead>
-              <TableHead className="hidden sm:table-cell">Slip No.</TableHead>
-              <TableHead>Bank</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
+              <SortableHead
+                field="paymentDate"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                className="w-28"
+              >
+                Date
+              </SortableHead>
+              <SortableHead field="party" sort={table.sort} onSort={table.toggleSort}>
+                Party
+              </SortableHead>
+              <SortableHead
+                field="subParty"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                className="hidden md:table-cell"
+              >
+                Sub Party
+              </SortableHead>
+              <SortableHead
+                field="slipNo"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                className="hidden sm:table-cell"
+              >
+                Slip No.
+              </SortableHead>
+              <SortableHead field="bank" sort={table.sort} onSort={table.toggleSort}>
+                Bank
+              </SortableHead>
+              <SortableHead
+                field="amount"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+              >
+                Amount
+              </SortableHead>
               <TableHead className="hidden lg:table-cell">Remarks</TableHead>
               {canManage && <TableHead className="w-12" />}
             </TableRow>
@@ -302,28 +325,15 @@ export default function PaymentsPage() {
         </Table>
       </div>
 
-      {total > PAGE_SIZE && (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
+      {data && (
+        <TablePagination
+          page={table.page}
+          pageSize={table.pageSize}
+          total={total}
+          onPageChange={table.setPage}
+          onPageSizeChange={table.setPageSize}
+          noun="payments"
+        />
       )}
 
       <ConfirmDialog

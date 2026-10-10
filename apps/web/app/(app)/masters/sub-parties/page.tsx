@@ -39,9 +39,10 @@ export default function SubPartiesPage() {
         </div>
       }
       columns={[
-        { header: 'Name', cell: (r) => r.name },
+        { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
         {
           header: 'Party',
+          sortKey: 'party',
           cell: (r) => r.party?.name ?? <span className="text-muted-foreground">Unassigned</span>,
         },
       ]}

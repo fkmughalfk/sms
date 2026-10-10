@@ -1,17 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { AuthUser, MasterListQuery, MasterOption, Paginated } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  activeIs,
-  assertUnique,
-  listArgs,
-  nameContains,
-  notId,
-  orNotFound,
-  toPage,
-} from './master-utils';
+import { activeIs, assertUnique, nameContains, notId, orNotFound, toPage } from './master-utils';
 
 /** The subset of a Prisma model delegate the master services use. */
 export interface MasterDelegate<Rec> {
@@ -48,7 +41,8 @@ export abstract class MasterService<
   protected abstract readonly select: object;
   protected abstract delegate(db: Db): MasterDelegate<Rec>;
 
-  protected readonly sortable: readonly string[] = ['name'];
+  /** Columns the list can be sorted by (`?sort=field:dir`); name and status always are. */
+  protected readonly sortColumns: SortColumns = {};
 
   constructor(
     protected readonly prisma: PrismaService,
@@ -93,7 +87,12 @@ export abstract class MasterService<
       this.delegate(this.prisma).findMany({
         where,
         select: this.select,
-        ...listArgs(query, this.sortable),
+        orderBy: orderBy(
+          query.sort,
+          { ...byFields('name', 'isActive'), ...this.sortColumns },
+          'name:asc',
+        ),
+        ...pageArgs(query),
       }),
       this.delegate(this.prisma).count({ where }),
       this.loadContext(this.prisma),

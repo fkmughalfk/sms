@@ -16,6 +16,7 @@ import {
   type UserListQuery,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting';
 import { PasswordService } from '../auth/password.service';
 import { TokenService } from '../auth/token.service';
 import { Prisma } from '../generated/prisma/client';
@@ -41,7 +42,15 @@ const toUser = (u: UserRecord): User => ({
   createdAt: u.createdAt.toISOString(),
 });
 
-const SORTABLE = ['name', 'email', 'role', 'createdAt', 'lastLoginAt'] as const;
+/** Sortable columns of the users list. */
+const USER_SORT: SortColumns = byFields(
+  'name',
+  'email',
+  'role',
+  'isActive',
+  'createdAt',
+  'lastLoginAt',
+);
 
 const LAST_SUPER_ADMIN = 'There must always be at least one active Super Admin.';
 
@@ -67,18 +76,12 @@ export class UsersService {
           }
         : {}),
     };
-    const [field, dir] = (query.sort ?? 'name:asc').split(':') as [string, 'asc' | 'desc'];
-    const orderBy = (SORTABLE as readonly string[]).includes(field)
-      ? { [field]: dir }
-      : { name: 'asc' as const };
-
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
         select: userSelect,
-        orderBy,
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
+        orderBy: orderBy(query.sort, USER_SORT, 'name:asc'),
+        ...pageArgs(query),
       }),
       this.prisma.user.count({ where }),
     ]);

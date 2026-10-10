@@ -31,16 +31,16 @@ import {
   TableBody,
   TableCell,
   TableFooter,
-  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SortableHead } from '@/components/data-table/sortable-head';
+import { TablePagination } from '@/components/data-table/table-pagination';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
-
-const PAGE_SIZE = 50;
+import { useTableState } from '@/lib/use-table';
 
 interface Filters {
   month: string;
@@ -89,14 +89,11 @@ export default function InvoicesPage() {
   const { can } = useAuth();
   const [view, setView] = useState<'invoices' | 'lines'>('invoices');
   const [filters, setFilters] = useState(initialFilters);
-  const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const deferred = useDeferredValue(filters);
 
-  const set = <K extends keyof Filters>(key: K, value: Filters[K]) => {
+  const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((f) => ({ ...f, [key]: value }));
-    setPage(1);
-  };
 
   const parties = useMasterOptions('parties', z.array(partyOptionSchema));
   const cities = useMasterOptions('cities');
@@ -105,26 +102,28 @@ export default function InvoicesPage() {
   const categories = useMasterOptions('categories');
 
   const params = toParams(deferred);
-  const listParams = new URLSearchParams(params);
-  listParams.set('page', String(page));
-  listParams.set('pageSize', String(PAGE_SIZE));
+  // Each view keeps its own sort and page; filter changes send both back to page 1.
+  const invoiceTable = useTableState({ sort: 'invoiceDate:desc', resetOn: params.toString() });
+  const lineTable = useTableState({ sort: 'invoiceDate:desc', resetOn: params.toString() });
+  const table = view === 'invoices' ? invoiceTable : lineTable;
+  const invoiceParams = invoiceTable.apply(new URLSearchParams(params));
+  const lineParams = lineTable.apply(new URLSearchParams(params));
 
   const invoices = useQuery({
-    queryKey: ['invoices', 'list', listParams.toString()],
-    queryFn: () => api.get(`/invoices?${listParams}`, invoiceListSchema),
+    queryKey: ['invoices', 'list', invoiceParams.toString()],
+    queryFn: () => api.get(`/invoices?${invoiceParams}`, invoiceListSchema),
     placeholderData: keepPreviousData,
     enabled: view === 'invoices',
   });
   const lines = useQuery({
-    queryKey: ['invoices', 'lines', listParams.toString()],
-    queryFn: () => api.get(`/invoices/lines?${listParams}`, invoiceLineListSchema),
+    queryKey: ['invoices', 'lines', lineParams.toString()],
+    queryFn: () => api.get(`/invoices/lines?${lineParams}`, invoiceLineListSchema),
     placeholderData: keepPreviousData,
     enabled: view === 'lines',
   });
   const active = view === 'invoices' ? invoices : lines;
   const totals = active.data?.totals;
   const total = active.data?.meta.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const exportExcel = async () => {
     setExporting(true);
@@ -240,26 +239,13 @@ export default function InvoicesPage() {
           />
         </Field>
         <div className="flex items-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setFilters(initialFilters());
-              setPage(1);
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setFilters(initialFilters())}>
             <X /> Reset filters
           </Button>
         </div>
       </div>
 
-      <Tabs
-        value={view}
-        onValueChange={(v) => {
-          setView(v as 'invoices' | 'lines');
-          setPage(1);
-        }}
-      >
+      <Tabs value={view} onValueChange={(v) => setView(v as 'invoices' | 'lines')}>
         <TabsList>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="lines">Lines</TabsTrigger>
@@ -271,15 +257,85 @@ export default function InvoicesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-20">#</TableHead>
-                <TableHead className="w-28">Date</TableHead>
-                <TableHead>Party</TableHead>
-                <TableHead className="hidden md:table-cell">City</TableHead>
-                <TableHead className="hidden lg:table-cell">ASM</TableHead>
-                <TableHead className="text-right">Bags</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Weight (KG)</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Commission</TableHead>
+                <SortableHead
+                  field="invoiceNo"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  className="w-20"
+                >
+                  #
+                </SortableHead>
+                <SortableHead
+                  field="invoiceDate"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  className="w-28"
+                >
+                  Date
+                </SortableHead>
+                <SortableHead
+                  field="party"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                >
+                  Party
+                </SortableHead>
+                <SortableHead
+                  field="city"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  className="hidden md:table-cell"
+                >
+                  City
+                </SortableHead>
+                <SortableHead
+                  field="salesperson"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  className="hidden lg:table-cell"
+                >
+                  ASM
+                </SortableHead>
+                <SortableHead
+                  field="totalPacks"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Bags
+                </SortableHead>
+                <SortableHead
+                  field="totalWeightKg"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                  className="hidden sm:table-cell"
+                >
+                  Weight (KG)
+                </SortableHead>
+                <SortableHead
+                  field="totalAmount"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Amount
+                </SortableHead>
+                <SortableHead
+                  field="totalCommission"
+                  sort={invoiceTable.sort}
+                  onSort={invoiceTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                  className="hidden md:table-cell"
+                >
+                  Commission
+                </SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -321,18 +377,94 @@ export default function InvoicesPage() {
           <Table className="min-w-[64rem]">
             <TableHeader>
               <TableRow>
-                <TableHead>#</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Party</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Bags</TableHead>
-                <TableHead className="text-right">Pack Wt</TableHead>
-                <TableHead className="text-right">Rate 40Kg</TableHead>
-                <TableHead className="text-right">Rate/Pack</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Commission</TableHead>
-                <TableHead className="text-right">Weight</TableHead>
+                <SortableHead
+                  field="invoiceNo"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                >
+                  #
+                </SortableHead>
+                <SortableHead
+                  field="invoiceDate"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                >
+                  Date
+                </SortableHead>
+                <SortableHead field="party" sort={lineTable.sort} onSort={lineTable.toggleSort}>
+                  Party
+                </SortableHead>
+                <SortableHead field="product" sort={lineTable.sort} onSort={lineTable.toggleSort}>
+                  Description
+                </SortableHead>
+                <SortableHead field="category" sort={lineTable.sort} onSort={lineTable.toggleSort}>
+                  Category
+                </SortableHead>
+                <SortableHead
+                  field="qtyPacks"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Bags
+                </SortableHead>
+                <SortableHead
+                  field="packWeightKg"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Pack Wt
+                </SortableHead>
+                <SortableHead
+                  field="rate40Kg"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Rate 40Kg
+                </SortableHead>
+                <SortableHead
+                  field="ratePerPack"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Rate/Pack
+                </SortableHead>
+                <SortableHead
+                  field="amount"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Amount
+                </SortableHead>
+                <SortableHead
+                  field="commission"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Commission
+                </SortableHead>
+                <SortableHead
+                  field="weightKg"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Weight
+                </SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -392,28 +524,15 @@ export default function InvoicesPage() {
         )}
       </div>
 
-      {total > PAGE_SIZE && (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
+      {active.data && (
+        <TablePagination
+          page={table.page}
+          pageSize={table.pageSize}
+          total={total}
+          onPageChange={table.setPage}
+          onPageSizeChange={table.setPageSize}
+          noun={view === 'invoices' ? 'invoices' : 'lines'}
+        />
       )}
 
       {totals && <TotalsPanel totals={totals} />}

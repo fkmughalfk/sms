@@ -70,15 +70,23 @@ export default function ProductsPage() {
         </div>
       }
       columns={[
-        { header: '#', cell: (r) => r.sku, className: 'w-16 tabular-nums' },
-        { header: 'Name', cell: (r) => r.name },
-        { header: 'Category', cell: (r) => r.category.name },
+        { header: '#', cell: (r) => r.sku, className: 'w-16 tabular-nums', sortKey: 'sku' },
+        { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
+        { header: 'Category', cell: (r) => r.category.name, sortKey: 'category' },
         {
           header: 'Unit (KG)',
           cell: (r) => formatKg(r.unitWeightKg),
           className: 'text-right tabular-nums',
+          sortKey: 'unitWeightKg',
+          numeric: true,
         },
-        { header: 'Pcs', cell: (r) => r.packPcs, className: 'text-right tabular-nums' },
+        {
+          header: 'Pcs',
+          cell: (r) => r.packPcs,
+          className: 'text-right tabular-nums',
+          sortKey: 'packPcs',
+          numeric: true,
+        },
         {
           header: 'Pack (KG)',
           cell: (r) => formatKg(r.packWeightKg),

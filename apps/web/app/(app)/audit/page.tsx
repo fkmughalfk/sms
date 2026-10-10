@@ -32,9 +32,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableHead } from '@/components/data-table/sortable-head';
+import { TablePagination } from '@/components/data-table/table-pagination';
 import { api } from '@/lib/api';
+import { useTableState } from '@/lib/use-table';
 
-const PAGE_SIZE = 50;
 const ALL = 'all';
 
 const when = new Intl.DateTimeFormat('en-GB', {
@@ -119,7 +121,6 @@ export default function AuditPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [page, setPage] = useState(1);
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   const users = useQuery({
@@ -128,12 +129,14 @@ export default function AuditPage() {
     staleTime: 5 * 60_000,
   });
 
-  const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
-  if (entity !== ALL) params.set('entity', entity);
-  if (action !== ALL) params.set('action', action);
-  if (userId) params.set('userId', userId);
-  if (from) params.set('from', from);
-  if (to) params.set('to', to);
+  const filterQuery = new URLSearchParams();
+  if (entity !== ALL) filterQuery.set('entity', entity);
+  if (action !== ALL) filterQuery.set('action', action);
+  if (userId) filterQuery.set('userId', userId);
+  if (from) filterQuery.set('from', from);
+  if (to) filterQuery.set('to', to);
+  const table = useTableState({ sort: 'createdAt:desc', resetOn: filterQuery.toString() });
+  const params = table.apply(new URLSearchParams(filterQuery));
 
   const { data, isPending, error } = useQuery({
     queryKey: ['audit', params.toString()],
@@ -141,12 +144,6 @@ export default function AuditPage() {
     placeholderData: keepPreviousData,
   });
 
-  const reset =
-    <T,>(fn: (v: T) => void) =>
-    (v: T) => {
-      fn(v);
-      setPage(1);
-    };
   const toggle = (id: string) =>
     setOpen((s) => {
       const next = new Set(s);
@@ -154,7 +151,6 @@ export default function AuditPage() {
       else next.add(id);
       return next;
     });
-  const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
 
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4">
@@ -167,7 +163,7 @@ export default function AuditPage() {
 
       <div className="grid gap-2 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="What">
-          <Select value={entity} onValueChange={reset(setEntity)}>
+          <Select value={entity} onValueChange={setEntity}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -182,7 +178,7 @@ export default function AuditPage() {
           </Select>
         </Field>
         <Field label="Action">
-          <Select value={action} onValueChange={reset(setAction)}>
+          <Select value={action} onValueChange={setAction}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -204,16 +200,16 @@ export default function AuditPage() {
               hint: u.email,
             }))}
             value={userId}
-            onChange={reset(setUserId)}
+            onChange={setUserId}
             placeholder="All users"
             noneLabel="All users"
           />
         </Field>
         <Field label="From">
-          <Input type="date" value={from} onChange={(e) => reset(setFrom)(e.target.value)} />
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </Field>
         <Field label="To">
-          <Input type="date" value={to} onChange={(e) => reset(setTo)(e.target.value)} />
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
         </Field>
         <div className="sm:col-span-2 lg:col-span-5">
           <Button
@@ -225,7 +221,6 @@ export default function AuditPage() {
               setUserId(null);
               setFrom('');
               setTo('');
-              setPage(1);
             }}
           >
             <X /> Reset filters
@@ -238,10 +233,22 @@ export default function AuditPage() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" />
-              <TableHead className="w-44">When</TableHead>
+              <SortableHead
+                field="createdAt"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                className="w-44"
+              >
+                When
+              </SortableHead>
               <TableHead>User</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>What</TableHead>
+              <SortableHead field="action" sort={table.sort} onSort={table.toggleSort}>
+                Action
+              </SortableHead>
+              <SortableHead field="entity" sort={table.sort} onSort={table.toggleSort}>
+                What
+              </SortableHead>
               <TableHead className="hidden md:table-cell">Changed</TableHead>
             </TableRow>
           </TableHeader>
@@ -323,28 +330,15 @@ export default function AuditPage() {
         </Table>
       </div>
 
-      {data && data.meta.total > PAGE_SIZE && (
-        <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
+      {data && (
+        <TablePagination
+          page={table.page}
+          pageSize={table.pageSize}
+          total={data.meta.total}
+          onPageChange={table.setPage}
+          onPageSizeChange={table.setPageSize}
+          noun="entries"
+        />
       )}
     </div>
   );

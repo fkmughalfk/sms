@@ -14,13 +14,15 @@ import {
   TableBody,
   TableCell,
   TableFooter,
-  TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableHead } from '@/components/data-table/sortable-head';
+import { TablePagination } from '@/components/data-table/table-pagination';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
+import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 
 /** Share bar for "% Recovered" (Payments J20:N…). */
@@ -49,10 +51,12 @@ export default function RecoveryPage() {
   const deferredSearch = useDeferredValue(search.trim());
   const cities = useMasterOptions('cities');
 
-  const params = new URLSearchParams();
-  if (deferredSearch) params.set('search', deferredSearch);
-  if (cityId) params.set('cityId', cityId);
-  if (outstandingOnly) params.set('outstandingOnly', 'true');
+  const filterQuery = new URLSearchParams();
+  if (deferredSearch) filterQuery.set('search', deferredSearch);
+  if (cityId) filterQuery.set('cityId', cityId);
+  if (outstandingOnly) filterQuery.set('outstandingOnly', 'true');
+  const table = useTableState({ sort: 'outstanding:desc', resetOn: filterQuery.toString() });
+  const params = table.apply(new URLSearchParams(filterQuery));
 
   const { data, isPending, error } = useQuery({
     queryKey: ['recovery', 'summary', params.toString()],
@@ -108,13 +112,64 @@ export default function RecoveryPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Party</TableHead>
-              <TableHead className="hidden md:table-cell">City</TableHead>
-              <TableHead className="text-right">Invoiced</TableHead>
-              <TableHead className="text-right">Recovered</TableHead>
-              <TableHead className="text-right">Outstanding</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">% Recovered</TableHead>
-              <TableHead className="hidden text-right lg:table-cell">Last payment</TableHead>
+              <SortableHead field="party" sort={table.sort} onSort={table.toggleSort}>
+                Party
+              </SortableHead>
+              <SortableHead
+                field="city"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                className="hidden md:table-cell"
+              >
+                City
+              </SortableHead>
+              <SortableHead
+                field="invoiced"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+              >
+                Invoiced
+              </SortableHead>
+              <SortableHead
+                field="recovered"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+              >
+                Recovered
+              </SortableHead>
+              <SortableHead
+                field="outstanding"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+              >
+                Outstanding
+              </SortableHead>
+              <SortableHead
+                field="recoveryRate"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+                className="hidden sm:table-cell"
+              >
+                % Recovered
+              </SortableHead>
+              <SortableHead
+                field="lastPaymentDate"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+                className="hidden lg:table-cell"
+              >
+                Last payment
+              </SortableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -190,6 +245,17 @@ export default function RecoveryPage() {
           )}
         </Table>
       </div>
+
+      {data && (
+        <TablePagination
+          page={table.page}
+          pageSize={table.pageSize}
+          total={data.meta.total}
+          onPageChange={table.setPage}
+          onPageSizeChange={table.setPageSize}
+          noun="parties"
+        />
+      )}
     </div>
   );
 }

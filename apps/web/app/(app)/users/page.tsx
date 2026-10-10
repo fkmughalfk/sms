@@ -39,11 +39,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SortableHead } from '@/components/data-table/sortable-head';
+import { TablePagination } from '@/components/data-table/table-pagination';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { ROLE_LABELS } from '@/lib/roles';
+import { useTableState } from '@/lib/use-table';
 
-const PAGE_SIZE = 25;
 const ALL = 'all';
 
 const dateTime = new Intl.DateTimeFormat('en-GB', {
@@ -58,19 +60,16 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState<string>(ALL);
   const [status, setStatus] = useState<string>('true');
-  const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<User | 'new' | null>(null);
   const [resetting, setResetting] = useState<User | null>(null);
   const deferredSearch = useDeferredValue(search.trim());
 
-  const params = new URLSearchParams({
-    page: String(page),
-    pageSize: String(PAGE_SIZE),
-    sort: 'name:asc',
-  });
-  if (deferredSearch) params.set('search', deferredSearch);
-  if (role !== ALL) params.set('role', role);
-  if (status !== ALL) params.set('active', status);
+  const filterQuery = new URLSearchParams();
+  if (deferredSearch) filterQuery.set('search', deferredSearch);
+  if (role !== ALL) filterQuery.set('role', role);
+  if (status !== ALL) filterQuery.set('active', status);
+  const table = useTableState({ sort: 'name:asc', resetOn: filterQuery.toString() });
+  const params = table.apply(new URLSearchParams(filterQuery));
 
   const { data, isPending, error } = useQuery({
     queryKey: ['users', params.toString()],
@@ -89,13 +88,6 @@ export default function UsersPage() {
   });
 
   const assignableRoles = ROLES.filter((r) => canManageRole(me.role, r));
-  const totalPages = data ? Math.max(1, Math.ceil(data.meta.total / PAGE_SIZE)) : 1;
-  const resetPage =
-    <T,>(fn: (v: T) => void) =>
-    (v: T) => {
-      fn(v);
-      setPage(1);
-    };
 
   return (
     <div className="grid gap-4">
@@ -117,10 +109,10 @@ export default function UsersPage() {
         <Input
           placeholder="Search name or email…"
           value={search}
-          onChange={(e) => resetPage(setSearch)(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
           className="w-full sm:w-64"
         />
-        <Select value={role} onValueChange={resetPage(setRole)}>
+        <Select value={role} onValueChange={setRole}>
           <SelectTrigger className="w-36">
             <SelectValue />
           </SelectTrigger>
@@ -133,7 +125,7 @@ export default function UsersPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select value={status} onValueChange={resetPage(setStatus)}>
+        <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="w-36">
             <SelectValue />
           </SelectTrigger>
@@ -149,11 +141,32 @@ export default function UsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Last login</TableHead>
+              <SortableHead field="name" sort={table.sort} onSort={table.toggleSort}>
+                Name
+              </SortableHead>
+              <SortableHead field="email" sort={table.sort} onSort={table.toggleSort}>
+                Email
+              </SortableHead>
+              <SortableHead field="role" sort={table.sort} onSort={table.toggleSort}>
+                Role
+              </SortableHead>
+              <SortableHead
+                field="isActive"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+              >
+                Status
+              </SortableHead>
+              <SortableHead
+                field="lastLoginAt"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                className="hidden lg:table-cell"
+              >
+                Last login
+              </SortableHead>
               <TableHead className="w-12" />
             </TableRow>
           </TableHeader>
@@ -239,28 +252,15 @@ export default function UsersPage() {
         </Table>
       </div>
 
-      {data && data.meta.total > PAGE_SIZE && (
-        <div className="flex items-center justify-end gap-2 text-sm">
-          <span className="text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
+      {data && (
+        <TablePagination
+          page={table.page}
+          pageSize={table.pageSize}
+          total={data.meta.total}
+          onPageChange={table.setPage}
+          onPageSizeChange={table.setPageSize}
+          noun="users"
+        />
       )}
 
       <UserDialog

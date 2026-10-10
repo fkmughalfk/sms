@@ -17,10 +17,12 @@ export default function CategoriesPage() {
       listSchema={categoryListSchema}
       managePermission="categories.manage"
       columns={[
-        { header: 'Name', cell: (r) => r.name },
+        { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
         {
           header: 'Commission',
           className: 'text-right',
+          sortKey: 'commissionRate',
+          numeric: true,
           cell: (r) =>
             r.commissionRate === null ? (
               <span className="text-muted-foreground">Default</span>

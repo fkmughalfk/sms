@@ -9,6 +9,7 @@ import {
   resolveCommissionRate,
 } from '@sms/shared';
 import type { Prisma } from '../../generated/prisma/client';
+import { byFields, byRelationName } from '../../common/sorting';
 import { type Db, type MasterDelegate, MasterService } from '../master.service';
 import { assertActiveRef, assertUnique, nameContains, notId } from '../master-utils';
 
@@ -44,7 +45,10 @@ export class ProductsService extends MasterService<
   protected readonly entity = 'Product';
   protected readonly label = 'product';
   protected readonly select = select;
-  protected override readonly sortable = ['name', 'sku'];
+  protected override readonly sortColumns = {
+    ...byFields('sku', 'unitWeightKg', 'packPcs', 'commissionRate'),
+    category: byRelationName('category'),
+  };
 
   protected delegate(db: Db) {
     return db.product as unknown as MasterDelegate<Rec>;

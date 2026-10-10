@@ -30,13 +30,20 @@ export default function PartiesPage() {
         </div>
       }
       columns={[
-        { header: 'Name', cell: (r) => r.name },
-        { header: 'City', cell: (r) => r.city?.name ?? '—' },
-        { header: 'Phone', cell: (r) => r.phone ?? '—', className: 'hidden md:table-cell' },
+        { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
+        { header: 'City', cell: (r) => r.city?.name ?? '—', sortKey: 'city' },
+        {
+          header: 'Phone',
+          cell: (r) => r.phone ?? '—',
+          className: 'hidden md:table-cell',
+          sortKey: 'phone',
+        },
         {
           header: 'Opening balance',
           cell: (r) => formatPKR2(r.openingBalance),
           className: 'text-right tabular-nums',
+          sortKey: 'openingBalance',
+          numeric: true,
         },
       ]}
       renderDialog={(props) => <PartyDialog {...props} />}

@@ -12,7 +12,7 @@ export default function BanksPage() {
       description="Payment accounts. Add “Cash” for cash receipts."
       path="banks"
       listSchema={namedListSchema}
-      columns={[{ header: 'Name', cell: (r) => r.name }]}
+      columns={[{ header: 'Name', cell: (r) => r.name, sortKey: 'name' }]}
       renderDialog={(props) => (
         <EntityDialog
           {...props}

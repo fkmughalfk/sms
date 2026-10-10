@@ -12,6 +12,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { paymentScope } from '../common/data-scope';
 import { dateRangeWhere, fromDbDate, toDbDate } from '../common/db-date';
+import { byFields, byRelationName, orderBy, pageArgs, type SortColumns } from '../common/sorting';
 import type { Prisma } from '../generated/prisma/client';
 import type { Db } from '../masters/master.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -36,6 +37,14 @@ const paymentSelect = {
 
 type PaymentRec = Prisma.PaymentGetPayload<{ select: typeof paymentSelect }>;
 
+/** Sortable columns of the payments list. */
+const PAYMENT_SORT: SortColumns = {
+  ...byFields('paymentDate', 'slipNo', 'amount', 'createdAt'),
+  party: byRelationName('party'),
+  subParty: byRelationName('subParty'),
+  bank: byRelationName('bank'),
+};
+
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -49,9 +58,11 @@ export class PaymentsService {
       this.prisma.payment.findMany({
         where,
         select: paymentSelect,
-        orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }],
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
+        orderBy: orderBy(query.sort, PAYMENT_SORT, 'paymentDate:desc', [
+          { createdAt: 'desc' },
+          { id: 'asc' },
+        ]),
+        ...pageArgs(query),
       }),
       this.prisma.payment.count({ where }),
       this.prisma.payment.aggregate({ where, _sum: { amount: true } }),

@@ -11,7 +11,7 @@ export default function CitiesPage() {
       title="Cities"
       path="cities"
       listSchema={namedListSchema}
-      columns={[{ header: 'Name', cell: (r) => r.name }]}
+      columns={[{ header: 'Name', cell: (r) => r.name, sortKey: 'name' }]}
       renderDialog={(props) => (
         <EntityDialog
           {...props}

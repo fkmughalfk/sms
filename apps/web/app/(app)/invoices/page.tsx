@@ -42,6 +42,7 @@ import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { cn } from '@/lib/utils';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 interface Filters {
   month: string;
@@ -170,7 +171,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="grid gap-2 rounded-xl border border-l-4 border-l-indigo-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <FilterBar tone="indigo" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Month">
           <Input
             type="month"
@@ -246,7 +247,7 @@ export default function InvoicesPage() {
             <X /> Reset filters
           </Button>
         </div>
-      </div>
+      </FilterBar>
 
       <Tabs value={view} onValueChange={(v) => setView(v as 'invoices' | 'lines')}>
         <TabsList>

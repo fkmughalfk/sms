@@ -53,6 +53,7 @@ import { masterKey } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 export interface Column<Row> {
   header: string;
@@ -170,7 +171,7 @@ export function MasterListPage<Row extends BaseRow>({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <FilterBar tone="amber" className="flex flex-wrap items-center gap-2">
         <Input
           placeholder={searchPlaceholder}
           value={search}
@@ -188,7 +189,7 @@ export function MasterListPage<Row extends BaseRow>({
           </SelectContent>
         </Select>
         {filters}
-      </div>
+      </FilterBar>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>

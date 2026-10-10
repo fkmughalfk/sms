@@ -46,6 +46,7 @@ import { useAuth } from '@/lib/auth';
 import { ROLE_LABELS } from '@/lib/roles';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 const ALL = 'all';
 
@@ -108,7 +109,7 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <FilterBar tone="fuchsia" className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search name or email…"
           value={search}
@@ -138,7 +139,7 @@ export default function UsersPage() {
             <SelectItem value={ALL}>All</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </FilterBar>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>

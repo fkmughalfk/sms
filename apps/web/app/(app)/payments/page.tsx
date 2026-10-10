@@ -41,6 +41,7 @@ import { useAuth } from '@/lib/auth';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 interface Filters {
   month: string;
@@ -161,7 +162,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      <div className="grid gap-2 rounded-xl border border-l-4 border-l-emerald-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      <FilterBar tone="emerald" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Month">
           <Input
             type="month"
@@ -202,7 +203,7 @@ export default function PaymentsPage() {
             <X /> Reset filters
           </Button>
         </div>
-      </div>
+      </FilterBar>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>

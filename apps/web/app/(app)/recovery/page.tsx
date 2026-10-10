@@ -25,6 +25,7 @@ import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
 import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 /** Share bar for "% Recovered" (Payments J20:N…). */
 function RecoveryBar({ rate }: { rate: string }) {
@@ -85,7 +86,7 @@ export default function RecoveryPage() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <FilterBar tone="rose" className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Search party…"
           value={search}
@@ -104,12 +105,13 @@ export default function RecoveryPage() {
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
+            className="size-4 accent-rose-500"
             checked={outstandingOnly}
             onChange={(e) => setOutstandingOnly(e.target.checked)}
           />
           Only parties that owe
         </label>
-      </div>
+      </FilterBar>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>

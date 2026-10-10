@@ -37,6 +37,7 @@ import { TablePagination } from '@/components/data-table/table-pagination';
 import { api } from '@/lib/api';
 import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
+import { FilterBar } from '@/components/data-table/filter-bar';
 
 const ALL = 'all';
 
@@ -164,7 +165,7 @@ export default function AuditPage() {
         </p>
       </div>
 
-      <div className="grid gap-2 rounded-xl border border-l-4 border-l-amber-500 bg-card p-3 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
+      <FilterBar tone="amber" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <Field label="What">
           <Select value={entity} onValueChange={setEntity}>
             <SelectTrigger className="w-full">
@@ -229,7 +230,7 @@ export default function AuditPage() {
             <X /> Reset filters
           </Button>
         </div>
-      </div>
+      </FilterBar>
 
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>

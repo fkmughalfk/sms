@@ -92,20 +92,12 @@ pnpm import:excel "data/Sales Management System.xlsx" --mapping data/mapping.jso
 - Re-running is safe: existing products/parties/invoice numbers/payments are skipped.
 - Keep workbooks in `data/` — it is git-ignored.
 
-**As part of the seed (local development):** set `SEED_WORKBOOK` and `SEED_MAPPING` in
-`apps/api/.env` (paths from the repo root, see `.env.example`) and `pnpm db:seed` loads the workbook after
-the base data. A workbook with problems stops the seed with the report; nothing is written.
-
-**Production (Neon):** don't use `db:seed` (it would also create the `.env` seed admin). Load only the
-workbook, with the Neon _direct_ connection string from Vercel → api project → Settings → Environment
-Variables → `DATABASE_URL_UNPOOLED`:
-
-```powershell
-$env:DIRECT_URL = "postgresql://…"   # paste; never commit it
-pnpm import:excel "data/Sales Management System.xlsx" --mapping data/mapping.json --dry-run
-pnpm import:excel "data/Sales Management System.xlsx" --mapping data/mapping.json
-Remove-Item Env:DIRECT_URL
-```
+**Automatically, once, with the seed / deploy:** the workbook and its Sheet1 decisions are committed at
+`apps/api/prisma/seed-data/workbook.xlsx` and `mapping.json`. `pnpm db:seed` — and therefore every production
+deploy of the api (`scripts/vercel-migrate.mjs`) — loads them **only if the database has no Excel import
+recorded yet**; afterwards the app is the source of truth and the step is skipped. A workbook with problems
+is reported in the build log and skipped (the deploy still succeeds). Override the files locally with
+`SEED_WORKBOOK` / `SEED_MAPPING` (paths from the repo root).
 
 ## Auth
 

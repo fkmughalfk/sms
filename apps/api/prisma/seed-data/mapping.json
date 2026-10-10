@@ -1,0 +1,21 @@
+{
+  "parties": {
+    "pak rice traders dina": { "action": "map", "party": "Pak Rice Traders" },
+    "tayyab traders chakwal": { "action": "map", "party": "Tayyab Traders" },
+    "allah walay nakyal": { "action": "map", "party": "Allah Walay Traders" },
+    "bin sadeeq traders": { "action": "create", "name": "Bin Sadeeq Traders" },
+    "hazrat hussain sawat": { "action": "create", "name": "Hazrat Hussain Sawat" },
+    "islamabad commission shop": { "action": "create", "name": "Islamabad Commission Shop" },
+    "sadeeq brothers skt": { "action": "create", "name": "Sadeeq Brothers Skt" },
+    "sheikh brothers lalamusa": { "action": "create", "name": "Sheikh Brothers Lalamusa" }
+  },
+  "banks": {
+    "grainco ubl": "UBL",
+    "ubl grainco": "UBL",
+    "waqar rice abl": "Allied Bank",
+    "cash": "Cash",
+    "grainco": null,
+    "grainco foods": null,
+    "waqr rice mills": null
+  }
+}

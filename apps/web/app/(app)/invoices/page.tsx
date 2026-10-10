@@ -45,6 +45,8 @@ import { PageHeading } from '@/components/form-section';
 import { cn } from '@/lib/utils';
 import { FilterBar } from '@/components/data-table/filter-bar';
 import { RowActions } from '@/components/data-table/row-actions';
+import { BulkBar, SelectAllHead, SelectCell } from '@/components/data-table/bulk';
+import { fetchAllIds, useSelection } from '@/lib/use-selection';
 import { DeleteDialog } from '@/components/delete-dialog';
 
 interface Filters {
@@ -119,6 +121,7 @@ export default function InvoicesPage() {
   const invoiceParams = invoiceTable.apply(new URLSearchParams(params));
   const lineParams = lineTable.apply(new URLSearchParams(params));
 
+  const canBulk = can('invoice.delete');
   const invoices = useQuery({
     queryKey: ['invoices', 'list', invoiceParams.toString()],
     queryFn: () => api.get(`/invoices?${invoiceParams}`, invoiceListSchema),
@@ -152,6 +155,11 @@ export default function InvoicesPage() {
     : filters.month
       ? formatMonthHeading(filters.month)
       : 'All dates';
+
+  const selection = useSelection(
+    invoices.data?.data.map((i) => i.id) ?? [],
+    `${view}:${params.toString()}`,
+  );
 
   return (
     <div className="grid gap-4">
@@ -264,11 +272,28 @@ export default function InvoicesPage() {
         </TabsList>
       </Tabs>
 
+      {canBulk && view === 'invoices' && (
+        <BulkBar
+          selection={selection}
+          total={invoices.data?.meta.total ?? 0}
+          noun="invoices"
+          actions={['delete']}
+          endpoint="/invoices/bulk-delete"
+          invalidate={[['invoices'], ['reports'], ['recovery']]}
+          onSelectAll={() => fetchAllIds('/invoices', params)}
+          describe={{
+            delete:
+              'They disappear from lists and totals with all their lines; their numbers stay reserved. Each delete is in the audit log.',
+          }}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         {view === 'invoices' ? (
           <Table>
             <TableHeader>
               <TableRow>
+                {canBulk && <SelectAllHead selection={selection} />}
                 <SortableHead
                   field="invoiceNo"
                   sort={invoiceTable.sort}
@@ -352,13 +377,21 @@ export default function InvoicesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <StatusRows query={invoices} colSpan={10} />
+              <StatusRows query={invoices} colSpan={canBulk ? 11 : 10} />
               {invoices.data?.data.map((inv) => (
                 <TableRow
                   key={inv.id}
+                  data-state={selection.has(inv.id) ? 'selected' : undefined}
                   className="cursor-pointer"
                   onClick={() => router.push(`/invoices/${inv.id}`)}
                 >
+                  {canBulk && (
+                    <SelectCell
+                      selection={selection}
+                      id={inv.id}
+                      label={`invoice ${inv.invoiceNo}`}
+                    />
+                  )}
                   <TableCell className="font-medium tabular-nums">
                     <Link href={`/invoices/${inv.id}`} onClick={(e) => e.stopPropagation()}>
                       {inv.invoiceNo}

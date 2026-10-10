@@ -22,8 +22,10 @@ import {
   packWeightKg,
   resolveCommissionRate,
   type Totals,
+  type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { runBulk } from '../common/bulk';
 import { invoiceScope } from '../common/data-scope';
 import { dateRangeWhere } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
@@ -340,6 +342,11 @@ export class InvoicesService {
   }
 
   /** Soft delete (CLAUDE.md rule 6). The invoice number stays reserved. */
+  /** Soft-deletes each id like `remove` (own transaction + audit); misses are skipped. */
+  bulkRemove(user: AuthUser, ids: string[], ip: string | null): Promise<BulkResult> {
+    return runBulk(ids, (id) => this.remove(user, id, ip));
+  }
+
   async remove(user: AuthUser, id: string, ip: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findFirst({

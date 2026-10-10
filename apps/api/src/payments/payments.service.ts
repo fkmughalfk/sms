@@ -8,8 +8,10 @@ import {
   type PaymentListQuery,
   type PaymentRow,
   type UpdatePaymentInput,
+  type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { runBulk } from '../common/bulk';
 import { paymentScope } from '../common/data-scope';
 import { dateRangeWhere, fromDbDate, toDbDate } from '../common/db-date';
 import { byFields, byRelationName, orderBy, pageArgs, type SortColumns } from '../common/sorting';
@@ -166,6 +168,11 @@ export class PaymentsService {
   }
 
   /** Soft delete (CLAUDE.md rule 6). */
+  /** Soft-deletes each id like `remove` (own transaction + audit); misses are skipped. */
+  bulkRemove(user: AuthUser, ids: string[], ip: string | null): Promise<BulkResult> {
+    return runBulk(ids, (id) => this.remove(user, id, ip));
+  }
+
   async remove(user: AuthUser, id: string, ip: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.payment.findFirst({

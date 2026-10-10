@@ -19,6 +19,8 @@ import {
   invoiceInputSchema,
   type InvoiceListQuery,
   invoiceListQuerySchema,
+  type BulkDeleteInput,
+  bulkDeleteSchema,
 } from '@sms/shared';
 import type { Response } from 'express';
 import { ClientIp, CurrentUser, RequirePermission } from '../common/decorators';
@@ -114,5 +116,17 @@ export class InvoicesController {
   @RequirePermission('invoice.delete')
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string, @ClientIp() ip: string | null) {
     return this.invoices.remove(user, id, ip);
+  }
+
+  /** Select-all on the list: soft-delete many; ones outside your scope are skipped. */
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('invoice.delete')
+  bulkRemove(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(bulkDeleteSchema)) body: BulkDeleteInput,
+    @ClientIp() ip: string | null,
+  ) {
+    return this.invoices.bulkRemove(user, body.ids, ip);
   }
 }

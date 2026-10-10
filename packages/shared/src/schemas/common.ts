@@ -141,3 +141,36 @@ export interface ApiError {
   message: string;
   errors?: { path: string; message: string }[];
 }
+
+// ── Bulk actions (select-all on lists) ──
+
+/** Most records one bulk request may touch — "select all" across pages stays within it. */
+export const BULK_MAX = 2000;
+
+const bulkIdsSchema = z
+  .array(z.string().min(1))
+  .min(1, 'Select at least one record.')
+  .max(BULK_MAX, `Select at most ${BULK_MAX} records at a time.`)
+  .transform((ids) => [...new Set(ids)]);
+
+/** Masters and users: activate, deactivate or delete many records. */
+export const bulkActionSchema = z.object({
+  ids: bulkIdsSchema,
+  action: z.enum(['activate', 'deactivate', 'delete']),
+});
+export type BulkActionInput = z.infer<typeof bulkActionSchema>;
+export type BulkAction = BulkActionInput['action'];
+
+/** Invoices and payments: soft-delete many records. */
+export const bulkDeleteSchema = z.object({ ids: bulkIdsSchema });
+export type BulkDeleteInput = z.infer<typeof bulkDeleteSchema>;
+
+/**
+ * Each record is handled on its own (own transaction and audit entry). Records that can't
+ * be changed — in use, not allowed, already gone — are skipped with the reason.
+ */
+export const bulkResultSchema = z.object({
+  done: z.number(),
+  skipped: z.array(z.object({ id: z.string(), reason: z.string() })),
+});
+export type BulkResult = z.infer<typeof bulkResultSchema>;

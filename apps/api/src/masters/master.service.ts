@@ -1,6 +1,14 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import type { AuthUser, MasterListQuery, MasterOption, Paginated } from '@sms/shared';
+import type {
+  AuthUser,
+  BulkActionInput,
+  BulkResult,
+  MasterListQuery,
+  MasterOption,
+  Paginated,
+} from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { runBulk } from '../common/bulk';
 import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -222,6 +230,15 @@ export abstract class MasterService<
         tx,
       );
     });
+  }
+
+  /** Many records at once; each keeps its own transaction, audit entry and checks. */
+  bulk(actor: AuthUser, { ids, action }: BulkActionInput, ip: string | null): Promise<BulkResult> {
+    return runBulk(ids, (id) =>
+      action === 'delete'
+        ? this.remove(actor, id, ip)
+        : this.setStatus(actor, id, action === 'activate', ip),
+    );
   }
 
   setStatus(actor: AuthUser, id: string, isActive: boolean, ip: string | null): Promise<Row> {

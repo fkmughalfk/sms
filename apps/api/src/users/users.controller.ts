@@ -22,6 +22,8 @@ import {
   updateUserSchema,
   type UserListQuery,
   userListQuerySchema,
+  type BulkActionInput,
+  bulkActionSchema,
 } from '@sms/shared';
 import { ClientIp, CurrentUser, RequirePermission } from '../common/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -88,5 +90,16 @@ export class UsersController {
     @ClientIp() ip: string | null,
   ) {
     return this.users.resetPassword(actor, id, body.newPassword, ip);
+  }
+
+  /** Select-all on the list; yourself, the last super admin and used accounts are skipped. */
+  @Post('bulk')
+  @HttpCode(HttpStatus.OK)
+  bulk(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(bulkActionSchema)) body: BulkActionInput,
+    @ClientIp() ip: string | null,
+  ) {
+    return this.users.bulk(actor, body, ip);
   }
 }

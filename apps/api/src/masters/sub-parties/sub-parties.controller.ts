@@ -22,6 +22,8 @@ import {
   subPartySchema,
   type UpdateSubPartyInput,
   updateSubPartySchema,
+  type BulkActionInput,
+  bulkActionSchema,
 } from '@sms/shared';
 import { ClientIp, CurrentUser, RequirePermission } from '../../common/decorators';
 import { ZodValidationPipe } from '../../common/zod-validation.pipe';
@@ -87,5 +89,17 @@ export class SubPartiesController {
   @RequirePermission('masters.manage')
   remove(@CurrentUser() actor: AuthUser, @Param('id') id: string, @ClientIp() ip: string | null) {
     return this.service.remove(actor, id, ip);
+  }
+
+  /** Select-all on the list: activate, deactivate or delete many; blocked ones are skipped. */
+  @Post('bulk')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('masters.manage')
+  bulk(
+    @CurrentUser() actor: AuthUser,
+    @Body(new ZodValidationPipe(bulkActionSchema)) body: BulkActionInput,
+    @ClientIp() ip: string | null,
+  ) {
+    return this.service.bulk(actor, body, ip);
   }
 }

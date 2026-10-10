@@ -21,6 +21,8 @@ import {
   paymentListQuerySchema,
   type UpdatePaymentInput,
   updatePaymentSchema,
+  type BulkDeleteInput,
+  bulkDeleteSchema,
 } from '@sms/shared';
 import type { Response } from 'express';
 import { ClientIp, CurrentUser, RequirePermission } from '../common/decorators';
@@ -92,5 +94,17 @@ export class PaymentsController {
   @RequirePermission('payment.delete')
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string, @ClientIp() ip: string | null) {
     return this.payments.remove(user, id, ip);
+  }
+
+  /** Select-all on the list: soft-delete many; ones outside your scope are skipped. */
+  @Post('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('payment.delete')
+  bulkRemove(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(bulkDeleteSchema)) body: BulkDeleteInput,
+    @ClientIp() ip: string | null,
+  ) {
+    return this.payments.bulkRemove(user, body.ids, ip);
   }
 }

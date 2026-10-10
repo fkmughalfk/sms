@@ -14,8 +14,11 @@ import {
   type UpdateUserInput,
   type User,
   type UserListQuery,
+  type BulkActionInput,
+  type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { runBulk } from '../common/bulk';
 import { byFields, orderBy, pageArgs, type SortColumns } from '../common/sorting';
 import { PasswordService } from '../auth/password.service';
 import { TokenService } from '../auth/token.service';
@@ -244,6 +247,15 @@ export class UsersService {
         tx,
       );
     });
+  }
+
+  /** Many accounts at once; each goes through the same checks as one at a time. */
+  bulk(actor: AuthUser, { ids, action }: BulkActionInput, ip: string | null): Promise<BulkResult> {
+    return runBulk(ids, (id) =>
+      action === 'delete'
+        ? this.remove(actor, id, ip)
+        : this.setStatus(actor, id, action === 'activate', ip),
+    );
   }
 
   async resetPassword(

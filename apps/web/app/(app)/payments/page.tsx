@@ -38,6 +38,8 @@ import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
 import { RowActions } from '@/components/data-table/row-actions';
+import { BulkBar, SelectAllHead, SelectCell } from '@/components/data-table/bulk';
+import { fetchAllIds, useSelection } from '@/lib/use-selection';
 import { DetailsDialog } from '@/components/details-dialog';
 
 interface Filters {
@@ -130,6 +132,8 @@ export default function PaymentsPage() {
       ? formatMonthHeading(filters.month)
       : 'All dates';
   const total = data?.meta.total ?? 0;
+  const canBulk = can('payment.delete');
+  const selection = useSelection(data?.data.map((p) => p.id) ?? [], params.toString());
 
   return (
     <div className="grid gap-4">
@@ -202,10 +206,27 @@ export default function PaymentsPage() {
         </div>
       </FilterBar>
 
+      {canBulk && (
+        <BulkBar
+          selection={selection}
+          total={total}
+          noun="payments"
+          actions={['delete']}
+          endpoint="/payments/bulk-delete"
+          invalidate={[['payments'], ['recovery'], ['reports']]}
+          onSelectAll={() => fetchAllIds('/payments', params)}
+          describe={{
+            delete:
+              "They disappear from lists and totals, and each party's outstanding goes up by the amounts. Each delete is in the audit log.",
+          }}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              {canBulk && <SelectAllHead selection={selection} />}
               <SortableHead
                 field="paymentDate"
                 sort={table.sort}
@@ -253,7 +274,7 @@ export default function PaymentsPage() {
           <TableBody>
             {(isPending || error || data?.data.length === 0) && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={canBulk ? 9 : 8} className="text-center text-muted-foreground">
                   {isPending
                     ? 'Loading…'
                     : error
@@ -263,7 +284,14 @@ export default function PaymentsPage() {
               </TableRow>
             )}
             {data?.data.map((p) => (
-              <TableRow key={p.id}>
+              <TableRow key={p.id} data-state={selection.has(p.id) ? 'selected' : undefined}>
+                {canBulk && (
+                  <SelectCell
+                    selection={selection}
+                    id={p.id}
+                    label={`payment of ${formatPKR2(p.amount)}`}
+                  />
+                )}
                 <TableCell className="tabular-nums">{toDisplayDate(p.paymentDate)}</TableCell>
                 <TableCell>
                   <Link href={`/recovery/${p.party.id}`} className="hover:underline">
@@ -306,6 +334,7 @@ export default function PaymentsPage() {
           {data && data.data.length > 0 && (
             <TableFooter>
               <TableRow className="font-semibold">
+                {canBulk && <TableCell />}
                 <TableCell colSpan={2}>
                   Total · {formatQty(data.totals.payments)} payments
                 </TableCell>

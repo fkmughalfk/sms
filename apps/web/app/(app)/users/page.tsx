@@ -42,6 +42,8 @@ import { useTableState } from '@/lib/use-table';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
 import { RowActions } from '@/components/data-table/row-actions';
+import { BulkBar, SelectAllHead, SelectCell } from '@/components/data-table/bulk';
+import { fetchAllIds, useSelection } from '@/lib/use-selection';
 import { DeleteDialog } from '@/components/delete-dialog';
 import { DetailsDialog } from '@/components/details-dialog';
 
@@ -89,6 +91,7 @@ export default function UsersPage() {
   });
 
   const assignableRoles = ROLES.filter((r) => canManageRole(me.role, r));
+  const selection = useSelection(data?.data.map((u) => u.id) ?? [], filterQuery.toString());
 
   return (
     <div className="grid gap-4">
@@ -140,10 +143,26 @@ export default function UsersPage() {
         </Select>
       </FilterBar>
 
+      <BulkBar
+        selection={selection}
+        total={data?.meta.total ?? 0}
+        noun="users"
+        actions={['activate', 'deactivate', 'delete']}
+        endpoint="/users/bulk"
+        invalidate={[['users']]}
+        onSelectAll={() => fetchAllIds('/users', filterQuery)}
+        describe={{
+          deactivate: 'They are signed out and can no longer log in. Your own account is skipped.',
+          delete:
+            'Only accounts that never logged in or entered anything are deleted; the rest are skipped — deactivate those instead.',
+        }}
+      />
+
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              <SelectAllHead selection={selection} />
               <SortableHead field="name" sort={table.sort} onSort={table.toggleSort}>
                 Name
               </SortableHead>
@@ -176,21 +195,21 @@ export default function UsersPage() {
           <TableBody>
             {isPending && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   Loading…
                 </TableCell>
               </TableRow>
             )}
             {error && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-destructive">
+                <TableCell colSpan={7} className="text-center text-destructive">
                   {error.message}
                 </TableCell>
               </TableRow>
             )}
             {data?.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   No users found.
                 </TableCell>
               </TableRow>
@@ -198,7 +217,12 @@ export default function UsersPage() {
             {data?.data.map((u) => {
               const manageable = canManageRole(me.role, u.role);
               return (
-                <TableRow key={u.id} className={u.isActive ? undefined : 'text-muted-foreground'}>
+                <TableRow
+                  key={u.id}
+                  data-state={selection.has(u.id) ? 'selected' : undefined}
+                  className={u.isActive ? undefined : 'text-muted-foreground'}
+                >
+                  <SelectCell selection={selection} id={u.id} label={u.name} />
                   <TableCell className="font-medium">
                     {u.name}
                     {u.id === me.id && (

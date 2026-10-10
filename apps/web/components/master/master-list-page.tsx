@@ -49,7 +49,9 @@ import { useTableState } from '@/lib/use-table';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
+import { BulkBar, SelectAllHead, SelectCell } from '@/components/data-table/bulk';
 import { RowActions } from '@/components/data-table/row-actions';
+import { fetchAllIds, useSelection } from '@/lib/use-selection';
 import { DeleteDialog } from '@/components/delete-dialog';
 import { DetailsDialog } from '@/components/details-dialog';
 
@@ -150,7 +152,8 @@ export function MasterListPage<Row extends BaseRow>({
     onError: (e) => toast.error(e instanceof ApiError ? e.message : 'Something went wrong.'),
   });
 
-  const colSpan = columns.length + 2;
+  const selection = useSelection(data?.data.map((r) => r.id) ?? [], filterQuery.toString());
+  const colSpan = columns.length + (canManage ? 3 : 2);
 
   return (
     <div className="grid gap-4">
@@ -194,10 +197,28 @@ export function MasterListPage<Row extends BaseRow>({
         {filters}
       </FilterBar>
 
+      {canManage && (
+        <BulkBar
+          selection={selection}
+          total={data?.meta.total ?? 0}
+          noun={title.toLowerCase()}
+          actions={['activate', 'deactivate', 'delete']}
+          endpoint={`/${path}/bulk`}
+          invalidate={[masterKey(path)]}
+          onSelectAll={() => fetchAllIds(`/${path}`, filterQuery)}
+          describe={{
+            deactivate: 'They disappear from dropdowns but stay on existing invoices and payments.',
+            delete:
+              'Only records nothing uses are deleted; any used on an invoice, payment or other record are skipped — deactivate those instead.',
+          }}
+        />
+      )}
+
       <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
+              {canManage && <SelectAllHead selection={selection} />}
               {columns.map((c) =>
                 c.sortKey ? (
                   <SortableHead
@@ -252,7 +273,12 @@ export function MasterListPage<Row extends BaseRow>({
               </TableRow>
             )}
             {data?.data.map((row) => (
-              <TableRow key={row.id} className={cn(!row.isActive && 'text-muted-foreground')}>
+              <TableRow
+                key={row.id}
+                data-state={selection.has(row.id) ? 'selected' : undefined}
+                className={cn(!row.isActive && 'text-muted-foreground')}
+              >
+                {canManage && <SelectCell selection={selection} id={row.id} label={row.name} />}
                 {columns.map((c) => (
                   <TableCell key={c.header} className={c.className}>
                     {c.cell(row)}

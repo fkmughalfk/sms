@@ -342,7 +342,7 @@ export default function InvoicesPage() {
                   firstDir="desc"
                   align="right"
                 >
-                  Bags
+                  Qty
                 </SortableHead>
                 <SortableHead
                   field="totalWeightKg"
@@ -363,21 +363,11 @@ export default function InvoicesPage() {
                 >
                   Amount
                 </SortableHead>
-                <SortableHead
-                  field="totalCommission"
-                  sort={invoiceTable.sort}
-                  onSort={invoiceTable.toggleSort}
-                  firstDir="desc"
-                  align="right"
-                  className="hidden md:table-cell"
-                >
-                  Commission
-                </SortableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
-              <StatusRows query={invoices} colSpan={canBulk ? 11 : 10} />
+              <StatusRows query={invoices} colSpan={canBulk ? 10 : 9} />
               {invoices.data?.data.map((inv) => (
                 <TableRow
                   key={inv.id}
@@ -411,9 +401,6 @@ export default function InvoicesPage() {
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatPKR(inv.totalAmount)}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums md:table-cell">
-                    {formatCommission(inv.totalCommission)}
                   </TableCell>
                   <TableCell>
                     <RowActions
@@ -450,7 +437,7 @@ export default function InvoicesPage() {
             </TableBody>
           </Table>
         ) : (
-          <Table className="min-w-[64rem]">
+          <Table className="min-w-[52rem]">
             <TableHeader>
               <TableRow>
                 <SortableHead
@@ -475,7 +462,12 @@ export default function InvoicesPage() {
                 <SortableHead field="product" sort={lineTable.sort} onSort={lineTable.toggleSort}>
                   Description
                 </SortableHead>
-                <SortableHead field="category" sort={lineTable.sort} onSort={lineTable.toggleSort}>
+                <SortableHead
+                  field="category"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  className="hidden 2xl:table-cell"
+                >
                   Category
                 </SortableHead>
                 <SortableHead
@@ -485,7 +477,7 @@ export default function InvoicesPage() {
                   firstDir="desc"
                   align="right"
                 >
-                  Bags
+                  Qty
                 </SortableHead>
                 <SortableHead
                   field="packWeightKg"
@@ -515,24 +507,6 @@ export default function InvoicesPage() {
                   Rate/Pack
                 </SortableHead>
                 <SortableHead
-                  field="amount"
-                  sort={lineTable.sort}
-                  onSort={lineTable.toggleSort}
-                  firstDir="desc"
-                  align="right"
-                >
-                  Amount
-                </SortableHead>
-                <SortableHead
-                  field="commission"
-                  sort={lineTable.sort}
-                  onSort={lineTable.toggleSort}
-                  firstDir="desc"
-                  align="right"
-                >
-                  Commission
-                </SortableHead>
-                <SortableHead
                   field="weightKg"
                   sort={lineTable.sort}
                   onSort={lineTable.toggleSort}
@@ -541,10 +515,19 @@ export default function InvoicesPage() {
                 >
                   Weight
                 </SortableHead>
+                <SortableHead
+                  field="amount"
+                  sort={lineTable.sort}
+                  onSort={lineTable.toggleSort}
+                  firstDir="desc"
+                  align="right"
+                >
+                  Amount
+                </SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <StatusRows query={lines} colSpan={12} />
+              <StatusRows query={lines} colSpan={11} />
               {lines.data?.data.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell className="tabular-nums">
@@ -553,9 +536,9 @@ export default function InvoicesPage() {
                     </Link>
                   </TableCell>
                   <TableCell className="tabular-nums">{toDisplayDate(l.invoiceDate)}</TableCell>
-                  <TableCell>{l.party.name}</TableCell>
-                  <TableCell>{l.product.name}</TableCell>
-                  <TableCell>{l.category.name}</TableCell>
+                  <TableCell className="min-w-32 whitespace-normal">{l.party.name}</TableCell>
+                  <TableCell className="min-w-40 whitespace-normal">{l.product.name}</TableCell>
+                  <TableCell className="hidden 2xl:table-cell">{l.category.name}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(l.qtyPacks)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatKg(l.packWeightKg)}
@@ -566,32 +549,27 @@ export default function InvoicesPage() {
                   <TableCell className="text-right tabular-nums">
                     {formatNumber(l.ratePerPack, 2)}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatKg(l.weightKg)}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatPKR(l.amount)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCommission(l.commission)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatKg(l.weightKg)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
             {totals && (
               <TableFooter>
                 <TableRow className="font-semibold">
-                  <TableCell colSpan={5}>Total</TableCell>
+                  <TableCell colSpan={4}>Total</TableCell>
+                  <TableCell className="hidden 2xl:table-cell" />
                   <TableCell className="text-right tabular-nums">
                     {formatQty(totals.totalPacks)}
                   </TableCell>
                   <TableCell colSpan={3} />
                   <TableCell className="text-right tabular-nums">
-                    {formatPKR(totals.totalAmount)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCommission(totals.totalCommission)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
                     {formatKg(totals.totalWeightKg)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatPKR(totals.totalAmount)}
                   </TableCell>
                 </TableRow>
               </TableFooter>
@@ -676,7 +654,7 @@ function TotalsPanel({ totals }: { totals: InvoiceTotals }) {
     ['Weight (Tons)', formatTons(totals.totalWeightKg)],
     ['Total Sale', formatPKR(totals.totalAmount)],
     ['Commission', formatCommission(totals.totalCommission)],
-    ['Total Packs', formatQty(totals.totalPacks)],
+    ['Total Qty', formatQty(totals.totalPacks)],
     ['Avg per Ton', formatPKR2(totals.avgPerTon)],
     ['Avg per Pack', formatPKR2(totals.avgPerPack)],
   ];

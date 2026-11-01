@@ -56,7 +56,7 @@ interface FormValues {
   lines: DraftLine[];
 }
 
-const START_ROWS = 5;
+const START_ROWS = 1;
 
 const emptyValues = (invoiceNo = ''): FormValues => ({
   invoiceNo,
@@ -358,18 +358,17 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
             onKeyDown={onGridKeyDown}
             className="overflow-x-auto rounded-lg border"
           >
-            <table className="w-full min-w-[60rem] text-sm">
+            <table className="w-full min-w-[46rem] table-fixed text-sm">
               <thead className="bg-indigo-50 text-xs text-indigo-900 dark:bg-indigo-500/10 dark:text-indigo-200">
                 <tr className="[&>th]:px-2 [&>th]:py-2.5 [&>th]:font-semibold">
-                  <th className="w-10 text-left">Sr</th>
+                  <th className="w-9 text-left">Sr</th>
                   <th className="text-left">Description (Product)</th>
-                  <th className="w-24 text-right">Bags</th>
-                  <th className="w-20 text-right">Pack Wt</th>
-                  <th className="w-32 text-right">Rate 40Kg</th>
-                  <th className="w-24 text-right">Rate/Pack</th>
+                  <th className="w-20 text-right">Qty</th>
+                  <th className="w-[4.5rem] text-right">Pack Wt</th>
+                  <th className="w-28 text-right">Rate 40Kg</th>
+                  <th className="w-20 text-right">Rate/Pack</th>
+                  <th className="w-20 text-right">Weight (KG)</th>
                   <th className="w-28 text-right">Amount</th>
-                  <th className="w-24 text-right">Commission</th>
-                  <th className="w-24 text-right">Weight (KG)</th>
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -389,7 +388,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                           {i + 1}
                         </span>
                       </td>
-                      <td className="min-w-64">
+                      <td>
                         <Controller
                           control={form.control}
                           name={`lines.${i}.productId`}
@@ -437,14 +436,11 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                       <td className="text-right tabular-nums">
                         {calc ? formatNumber(calc.ratePerPack, 2) : ''}
                       </td>
-                      <td className="text-right font-semibold text-indigo-700 tabular-nums dark:text-indigo-300">
-                        {calc ? formatPKR(calc.amount) : ''}
-                      </td>
-                      <td className="text-right tabular-nums">
-                        {calc ? formatCommission(calc.commission) : ''}
-                      </td>
                       <td className="text-right tabular-nums">
                         {calc ? formatKg(calc.weightKg) : ''}
+                      </td>
+                      <td className="text-right font-semibold text-indigo-700 tabular-nums dark:text-indigo-300">
+                        {calc ? formatPKR(calc.amount) : ''}
                       </td>
                       <td>
                         <Button
@@ -510,7 +506,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                 <dd>{formatCommission(totals.totalCommission)}</dd>
               </div>
               <div>
-                <dt>Total bags</dt>
+                <dt>Total qty</dt>
                 <dd>{formatQty(totals.totalPacks)}</dd>
               </div>
               <div>

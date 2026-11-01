@@ -9,7 +9,10 @@ import {
   type Settings,
 } from '@sms/shared';
 
-/** The invoice as a document — shown on the detail page and printed (spec §5.2 "Print"). */
+/**
+ * The invoice as a document — shown on the detail page and printed (spec §5.2 "Print").
+ * Lines carry no commission; `showCommission` adds the invoice total to the summary line.
+ */
 export function InvoiceDocument({
   invoice,
   settings,
@@ -67,13 +70,12 @@ export function InvoiceDocument({
             <tr className="[&>th]:px-2 [&>th]:py-2 [&>th]:font-medium">
               <th className="text-left">Sr</th>
               <th className="text-left">Description</th>
-              <th className="text-right">Bags</th>
+              <th className="text-right">Qty</th>
               <th className="text-right">Pack Wt</th>
               <th className="text-right">Rate 40Kg</th>
               <th className="text-right">Rate/Pack</th>
-              <th className="text-right">Amount</th>
-              {showCommission && <th className="text-right">Commission</th>}
               <th className="text-right">Weight (KG)</th>
+              <th className="text-right">Amount</th>
             </tr>
           </thead>
           <tbody className="tabular-nums">
@@ -85,9 +87,8 @@ export function InvoiceDocument({
                 <td className="text-right">{formatKg(l.packWeightKg)}</td>
                 <td className="text-right">{formatNumber(l.rate40Kg, 2)}</td>
                 <td className="text-right">{formatNumber(l.ratePerPack, 2)}</td>
-                <td className="text-right font-medium">{formatPKR(l.amount)}</td>
-                {showCommission && <td className="text-right">{formatCommission(l.commission)}</td>}
                 <td className="text-right">{formatKg(l.weightKg)}</td>
+                <td className="text-right font-medium">{formatPKR(l.amount)}</td>
               </tr>
             ))}
           </tbody>
@@ -97,11 +98,8 @@ export function InvoiceDocument({
               <td>Total</td>
               <td className="text-right">{formatQty(invoice.totalPacks)}</td>
               <td colSpan={3} />
-              <td className="text-right">{formatPKR(invoice.totalAmount)}</td>
-              {showCommission && (
-                <td className="text-right">{formatCommission(invoice.totalCommission)}</td>
-              )}
               <td className="text-right">{formatKg(invoice.totalWeightKg)}</td>
+              <td className="text-right">{formatPKR(invoice.totalAmount)}</td>
             </tr>
           </tfoot>
         </table>
@@ -109,7 +107,8 @@ export function InvoiceDocument({
 
       <div className="flex flex-wrap justify-between gap-4 text-sm">
         <p className="text-muted-foreground">
-          {formatQty(invoice.totalPacks)} bags · {formatTons(invoice.totalWeightKg)} tons
+          Qty {formatQty(invoice.totalPacks)} · {formatTons(invoice.totalWeightKg)} tons
+          {showCommission && <> · Commission {formatCommission(invoice.totalCommission)}</>}
         </p>
         <p className="text-lg font-semibold tabular-nums">
           Total PKR {formatPKR(invoice.totalAmount)}

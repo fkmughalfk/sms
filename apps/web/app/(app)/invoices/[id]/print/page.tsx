@@ -2,7 +2,6 @@
 
 import { ArrowLeft, Printer } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
 import { InvoiceDocument } from '@/components/invoice/invoice-document';
 import { Button } from '@/components/ui/button';
 import { useInvoice, useSettings } from '@/lib/use-invoice';
@@ -11,7 +10,6 @@ import { useInvoice, useSettings } from '@/lib/use-invoice';
 export default function PrintInvoicePage() {
   const { data: invoice, error, isPending } = useInvoice();
   const settings = useSettings();
-  const [showCommission, setShowCommission] = useState(false);
 
   if (isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (error) return <p className="text-sm text-destructive">{error.message}</p>;
@@ -25,21 +23,11 @@ export default function PrintInvoicePage() {
         >
           <ArrowLeft className="size-3" /> Invoice #{invoice.invoiceNo}
         </Link>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={showCommission}
-              onChange={(e) => setShowCommission(e.target.checked)}
-            />
-            Show commission
-          </label>
-          <Button onClick={() => window.print()}>
-            <Printer /> Print
-          </Button>
-        </div>
+        <Button onClick={() => window.print()}>
+          <Printer /> Print
+        </Button>
       </div>
-      <InvoiceDocument invoice={invoice} settings={settings.data} showCommission={showCommission} />
+      <InvoiceDocument invoice={invoice} settings={settings.data} showCommission={false} />
     </div>
   );
 }

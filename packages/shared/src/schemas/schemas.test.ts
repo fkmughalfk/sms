@@ -102,6 +102,19 @@ describe('masters', () => {
     expect(updatePartySchema.parse({ phone: '0300' })).toEqual({ phone: '0300' });
   });
 
+  it('party: blank credit days / limit mean "company default" and "no limit"', () => {
+    expect(partySchema.parse({ name: 'X', creditDays: '', creditLimit: ' ' })).toMatchObject({
+      creditDays: null,
+      creditLimit: null,
+    });
+    expect(
+      partySchema.parse({ name: 'X', creditDays: '45', creditLimit: '500000.50' }),
+    ).toMatchObject({ creditDays: 45, creditLimit: '500000.5' });
+    expect(partySchema.safeParse({ name: 'X', creditDays: '400' }).success).toBe(false);
+    expect(partySchema.safeParse({ name: 'X', creditLimit: '-1' }).success).toBe(false);
+    expect(updatePartySchema.parse({ phone: '0300' })).toEqual({ phone: '0300' });
+  });
+
   it('party: blank optional fields become null, opening balance defaults to 0', () => {
     expect(partySchema.parse({ name: 'Pak Rice Traders', cityId: '', phone: '  ' })).toEqual({
       name: 'Pak Rice Traders',
@@ -109,6 +122,8 @@ describe('masters', () => {
       salespersonId: null,
       phone: null,
       openingBalance: '0',
+      creditDays: null,
+      creditLimit: null,
     });
   });
 });

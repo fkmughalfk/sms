@@ -1,8 +1,17 @@
 'use client';
 
-import { BUSINESS_TIMEZONE } from '@sms/shared';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Copy, Pencil, Plus, Printer, Trash2, FileText } from 'lucide-react';
+import { BUSINESS_TIMEZONE, partyRowSchema } from '@sms/shared';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowLeft,
+  Copy,
+  MessageCircle,
+  Pencil,
+  Plus,
+  Printer,
+  Trash2,
+  FileText,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -13,7 +22,9 @@ import { InvoiceDocument } from '@/components/invoice/invoice-document';
 import { Button } from '@/components/ui/button';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { masterKey } from '@/lib/masters';
 import { useInvoice, useSettings } from '@/lib/use-invoice';
+import { invoiceMessage, waLink } from '@/lib/whatsapp';
 import { PageHeading } from '@/components/form-section';
 
 const stamp = new Intl.DateTimeFormat('en-GB', {
@@ -29,6 +40,14 @@ export default function InvoicePage() {
   const { data: invoice, error, isPending } = useInvoice();
   const settings = useSettings();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The party's phone, so "WhatsApp" opens that chat directly.
+  const partyId = invoice?.party.id;
+  const party = useQuery({
+    queryKey: [...masterKey('parties'), 'detail', partyId],
+    queryFn: () => api.get(`/parties/${partyId}`, partyRowSchema),
+    enabled: !!partyId,
+    staleTime: 60_000,
+  });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/invoices/${id}`, z.undefined()),
@@ -72,6 +91,27 @@ export default function InvoicePage() {
             <Link href={`/invoices/${invoice.id}/print`}>
               <Printer /> Print
             </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+          >
+            <a
+              href={waLink(
+                party.data?.phone,
+                invoiceMessage(settings.data?.companyName ?? 'WAQAR RICE MILLS', invoice),
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={
+                party.data?.phone
+                  ? `Send to ${party.data.phone} on WhatsApp`
+                  : 'No phone saved — WhatsApp will ask which chat'
+              }
+            >
+              <MessageCircle /> WhatsApp
+            </a>
           </Button>
           {can('invoice.create') && (
             <Button asChild variant="outline">

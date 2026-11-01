@@ -4,6 +4,7 @@ import { type PartyRow, partyRowSchema, partySchema } from '@sms/shared';
 import { EntityDialog } from '@/components/master/entity-dialog';
 import { ComboboxField, TextField } from '@/components/master/fields';
 import { toComboboxOptions, useMasterOptions } from '@/lib/masters';
+import { useSettings } from '@/lib/use-invoice';
 
 /** Create/edit a party — used by the Parties screen and "+ Add party" on invoices. */
 export function PartyDialog({
@@ -19,6 +20,7 @@ export function PartyDialog({
 }) {
   const cities = useMasterOptions('cities');
   const salespersons = useMasterOptions('salespersons');
+  const defaultDays = useSettings().data?.defaultCreditDays;
   return (
     <EntityDialog
       row={row}
@@ -35,6 +37,8 @@ export function PartyDialog({
         salespersonId: r?.salespersonId ?? null,
         phone: r?.phone ?? '',
         openingBalance: r?.openingBalance ?? '0',
+        creditDays: r?.creditDays != null ? String(r.creditDays) : '',
+        creditLimit: r?.creditLimit ?? '',
       })}
     >
       {(form) => (
@@ -63,6 +67,22 @@ export function PartyDialog({
               name="openingBalance"
               label="Opening balance (PKR)"
               inputMode="decimal"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <TextField
+              form={form}
+              name="creditDays"
+              label="Credit days"
+              inputMode="numeric"
+              placeholder={defaultDays !== undefined ? `Default (${defaultDays})` : 'Default'}
+            />
+            <TextField
+              form={form}
+              name="creditLimit"
+              label="Credit limit (PKR)"
+              inputMode="decimal"
+              placeholder="No limit"
             />
           </div>
         </>

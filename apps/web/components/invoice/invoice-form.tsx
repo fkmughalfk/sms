@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { Combobox } from '@/components/combobox';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { CreditWarning } from '@/components/invoice/credit-warning';
 import { FormField } from '@/components/form-field';
 import { FormSection } from '@/components/form-section';
 import { PartyDialog } from '@/components/master/party-dialog';
@@ -398,6 +399,12 @@ export function InvoiceForm({
             </FormField>
           </div>
         </FormSection>
+
+        <CreditWarning
+          partyId={partyId}
+          invoiceTotal={totals.totalAmount}
+          savedTotal={detail && detail.party.id === partyId ? detail.totalAmount : '0'}
+        />
 
         {err('lines') && (
           <Alert variant="destructive">

@@ -10,6 +10,7 @@ import { PrismaPGlite } from 'pglite-prisma-adapter';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaClient } from '../src/generated/prisma/client';
+import { Clock } from '../src/common/clock';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { configureApp } from '../src/setup';
 
@@ -34,7 +35,7 @@ let ipCounter = 1;
 export const nextIp = () => `10.0.${Math.floor(ipCounter / 250)}.${ipCounter++ % 250}`;
 
 /** Boots the real AppModule against an in-memory Postgres (PGlite) with all migrations applied. */
-export async function createTestApp(): Promise<TestApp> {
+export async function createTestApp(opts: { today?: string } = {}): Promise<TestApp> {
   const pg = await PGlite.create({ extensions: { citext } });
   const migrationsDir = join(__dirname, '..', 'prisma', 'migrations');
   for (const dir of readdirSync(migrationsDir, { withFileTypes: true }).filter((d) =>
@@ -45,10 +46,12 @@ export async function createTestApp(): Promise<TestApp> {
   const prisma = new PrismaClient({ adapter: new PrismaPGlite(pg) });
   await prisma.setting.create({ data: { id: 1 } });
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(PrismaService)
-    .useValue(prisma)
-    .compile();
+    .useValue(prisma);
+  // Pin "today" for date-dependent figures such as overdue ageing.
+  if (opts.today) builder.overrideProvider(Clock).useValue({ today: () => opts.today });
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication({ logger: false });
   configureApp(app, 'http://localhost:3000');
   await app.init();

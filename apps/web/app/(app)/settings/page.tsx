@@ -7,7 +7,7 @@ import {
   settingsSchema,
   updateSettingsSchema,
 } from '@sms/shared';
-import { SlidersHorizontal, Building2, Target } from 'lucide-react';
+import { SlidersHorizontal, Building2, Clock, Target } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -49,6 +49,7 @@ interface FormValues {
   annualSalesTarget: string;
   fiscalYearStartMonth: string;
   userEditWindowHours: string;
+  defaultCreditDays: string;
 }
 
 const toForm = (s: Settings): FormValues => ({
@@ -58,6 +59,7 @@ const toForm = (s: Settings): FormValues => ({
   annualSalesTarget: s.annualSalesTarget,
   fiscalYearStartMonth: String(s.fiscalYearStartMonth),
   userEditWindowHours: String(s.userEditWindowHours),
+  defaultCreditDays: String(s.defaultCreditDays),
 });
 
 /** Spec §5.8 — SUPER_ADMIN only (the layout blocks other roles). */
@@ -101,6 +103,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
       annualSalesTarget: v.annualSalesTarget,
       fiscalYearStartMonth: v.fiscalYearStartMonth,
       userEditWindowHours: v.userEditWindowHours,
+      defaultCreditDays: v.defaultCreditDays,
     };
     const parsed = updateSettingsSchema.safeParse(body);
     const map = new Map<string, string>();
@@ -210,6 +213,27 @@ function SettingsForm({ settings }: { settings: Settings }) {
               />
             </FormField>
           </div>
+        </FormSection>
+
+        <FormSection title="Credit control" icon={Clock} tone="amber" className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              id="defaultCreditDays"
+              label="Default credit days"
+              error={err('defaultCreditDays')}
+            >
+              <Input
+                id="defaultCreditDays"
+                inputMode="numeric"
+                {...form.register('defaultCreditDays')}
+              />
+            </FormField>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            An unpaid invoice older than this is overdue. A party can have its own credit days and
+            credit limit (Masters → Parties). Overdue and over-limit parties are warned about on new
+            invoices — saving is never blocked.
+          </p>
         </FormSection>
 
         <div className="flex gap-2">

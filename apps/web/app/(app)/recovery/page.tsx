@@ -53,6 +53,7 @@ export default function RecoveryPage() {
   const [search, setSearch] = useState('');
   const [cityId, setCityId] = useState<string | null>(null);
   const [outstandingOnly, setOutstandingOnly] = useState(true);
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [receiving, setReceiving] = useState<{ id: string; name: string } | null>(null);
   const deferredSearch = useDeferredValue(search.trim());
   const cities = useMasterOptions('cities');
@@ -61,6 +62,7 @@ export default function RecoveryPage() {
   if (deferredSearch) filterQuery.set('search', deferredSearch);
   if (cityId) filterQuery.set('cityId', cityId);
   if (outstandingOnly) filterQuery.set('outstandingOnly', 'true');
+  if (overdueOnly) filterQuery.set('overdueOnly', 'true');
   const table = useTableState({ sort: 'outstanding:desc', resetOn: filterQuery.toString() });
   const params = table.apply(new URLSearchParams(filterQuery));
 
@@ -78,7 +80,8 @@ export default function RecoveryPage() {
             Recovery
           </PageHeading>
           <p className="text-sm text-muted-foreground">
-            Outstanding by party. Invoiced includes opening balances.
+            Outstanding by party. Invoiced includes opening balances. Overdue = unpaid past the
+            party’s credit days (payments clear the oldest bills first).
           </p>
         </div>
         {can('payment.create') && (
@@ -114,6 +117,15 @@ export default function RecoveryPage() {
             onChange={(e) => setOutstandingOnly(e.target.checked)}
           />
           Only parties that owe
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-rose-500"
+            checked={overdueOnly}
+            onChange={(e) => setOverdueOnly(e.target.checked)}
+          />
+          Only overdue
         </label>
       </FilterBar>
 
@@ -160,12 +172,21 @@ export default function RecoveryPage() {
                 Outstanding
               </SortableHead>
               <SortableHead
+                field="overdue"
+                sort={table.sort}
+                onSort={table.toggleSort}
+                firstDir="desc"
+                align="right"
+              >
+                Overdue
+              </SortableHead>
+              <SortableHead
                 field="recoveryRate"
                 sort={table.sort}
                 onSort={table.toggleSort}
                 firstDir="desc"
                 align="right"
-                className="hidden sm:table-cell"
+                className="hidden 2xl:table-cell"
               >
                 % Recovered
               </SortableHead>
@@ -185,7 +206,7 @@ export default function RecoveryPage() {
           <TableBody>
             {(isPending || error || data?.data.length === 0) && (
               <TableRow>
-                <TableCell colSpan={8} className="text-center text-muted-foreground">
+                <TableCell colSpan={9} className="text-center text-muted-foreground">
                   {isPending ? 'Loading…' : error ? error.message : 'No parties match.'}
                 </TableCell>
               </TableRow>
@@ -222,7 +243,30 @@ export default function RecoveryPage() {
                   >
                     {formatPKR2(r.outstanding)}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
+                  <TableCell
+                    className="text-right tabular-nums"
+                    title={
+                      dec(r.overdue).gt(0)
+                        ? r.overdueInvoices > 0
+                          ? `${r.overdueInvoices} overdue invoice(s), oldest ${r.oldestOverdueDays} days (credit ${r.creditDays} days)`
+                          : `Unpaid opening balance (credit ${r.creditDays} days)`
+                        : undefined
+                    }
+                  >
+                    {dec(r.overdue).gt(0) ? (
+                      <span className="font-semibold text-rose-600 dark:text-rose-400">
+                        {formatPKR2(r.overdue)}
+                        {r.oldestOverdueDays !== null && (
+                          <span className="ml-1.5 rounded bg-rose-100 px-1 py-0.5 text-[10px] font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">
+                            {r.oldestOverdueDays}d
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden 2xl:table-cell">
                     <RecoveryBar rate={r.recoveryRate} />
                   </TableCell>
                   <TableCell className="hidden text-right tabular-nums lg:table-cell">
@@ -239,7 +283,7 @@ export default function RecoveryPage() {
                           aria-label={`Receive payment from ${r.party.name}`}
                         >
                           <HandCoins className="size-3.5" />
-                          <span className="hidden xl:inline">Receive</span>
+                          <span className="hidden 2xl:inline">Receive</span>
                         </Button>
                       )}
                       <RowActions
@@ -278,7 +322,10 @@ export default function RecoveryPage() {
                 <TableCell className="text-right tabular-nums">
                   {formatPKR2(data.totals.outstanding)}
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
+                <TableCell className="text-right text-rose-600 tabular-nums dark:text-rose-400">
+                  {formatPKR2(data.totals.overdue)}
+                </TableCell>
+                <TableCell className="hidden 2xl:table-cell">
                   <RecoveryBar rate={data.totals.recoveryRate} />
                 </TableCell>
                 <TableCell className="hidden lg:table-cell" />

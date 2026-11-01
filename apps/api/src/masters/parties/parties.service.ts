@@ -14,6 +14,8 @@ const select = {
   salesperson: { select: { id: true, name: true } },
   phone: true,
   openingBalance: true,
+  creditDays: true,
+  creditLimit: true,
   isActive: true,
 } as const;
 type Rec = Prisma.PartyGetPayload<{ select: typeof select }>;
@@ -24,7 +26,7 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
   protected readonly label = 'party';
   protected readonly select = select;
   protected override readonly sortColumns = {
-    ...byFields('phone', 'openingBalance'),
+    ...byFields('phone', 'openingBalance', 'creditDays', 'creditLimit'),
     city: byRelationName('city'),
     salesperson: byRelationName('salesperson'),
   };
@@ -34,7 +36,11 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
   }
 
   protected override toRow(rec: Rec): PartyRow {
-    return { ...rec, openingBalance: rec.openingBalance.toString() };
+    return {
+      ...rec,
+      openingBalance: rec.openingBalance.toString(),
+      creditLimit: rec.creditLimit?.toString() ?? null,
+    };
   }
 
   protected override listWhere(query: PartyListQuery): object {

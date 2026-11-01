@@ -363,6 +363,14 @@ export function PaymentForm({
                   <dt>Outstanding now</dt>
                   <dd className="text-base">{formatPKR2(position.data.outstanding)}</dd>
                 </div>
+                {dec(position.data.overdue).gt(0) && (
+                  <div>
+                    <dt>Overdue ({position.data.creditDays}+ days)</dt>
+                    <dd className="text-rose-600 dark:text-rose-400">
+                      {formatPKR2(position.data.overdue)}
+                    </dd>
+                  </div>
+                )}
                 <div>
                   <dt>After this payment</dt>
                   <dd

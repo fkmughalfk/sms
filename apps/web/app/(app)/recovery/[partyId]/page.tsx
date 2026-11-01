@@ -1,8 +1,15 @@
 'use client';
 
-import { businessToday, dec, formatPKR2, partyLedgerSchema } from '@sms/shared';
+import {
+  businessToday,
+  dec,
+  formatPKR2,
+  partyLedgerSchema,
+  type PartyPosition,
+  partyPositionSchema,
+} from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Plus, Printer, BookOpen } from 'lucide-react';
+import { ArrowLeft, Plus, Printer, BookOpen, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -11,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useSettings } from '@/lib/use-invoice';
+import { statementMessage, waLink } from '@/lib/whatsapp';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
 import { ReceivePaymentDialog } from '@/components/payment/receive-payment-dialog';
@@ -44,6 +52,11 @@ export default function PartyLedgerPage() {
     queryKey: ['recovery', 'ledger', partyId, params.toString()],
     queryFn: () => api.get(`/recovery/parties/${partyId}/ledger?${params}`, partyLedgerSchema),
     placeholderData: keepPreviousData,
+  });
+  // Credit terms, overdue and ageing are always "as of today", whatever the date filter.
+  const position = useQuery({
+    queryKey: ['recovery', 'position', partyId],
+    queryFn: () => api.get(`/recovery/parties/${partyId}/position`, partyPositionSchema),
   });
 
   if (isPending) return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -80,6 +93,34 @@ export default function PartyLedgerPage() {
           <Button variant="outline" onClick={() => window.print()}>
             <Printer /> Print
           </Button>
+          {position.data && (
+            <Button
+              asChild
+              variant="outline"
+              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+            >
+              <a
+                href={waLink(
+                  data.party.phone,
+                  statementMessage(
+                    settings.data?.companyName ?? 'WAQAR RICE MILLS',
+                    position.data,
+                    businessToday(),
+                    lastPayment(data.entries),
+                  ),
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={
+                  data.party.phone
+                    ? `Send the statement to ${data.party.phone} on WhatsApp`
+                    : 'No phone saved — WhatsApp will ask which chat'
+                }
+              >
+                <MessageCircle /> WhatsApp
+              </a>
+            </Button>
+          )}
           {can('payment.create') && (
             <Button onClick={() => setReceiving(true)}>
               <Plus /> Record payment
@@ -105,6 +146,8 @@ export default function PartyLedgerPage() {
             <p className="text-xs text-muted-foreground">{period}</p>
           </div>
         </header>
+
+        {position.data && <AgeingPanel p={position.data} />}
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -181,5 +224,59 @@ export default function PartyLedgerPage() {
         onOpenChange={(o) => !o && setReceiving(false)}
       />
     </div>
+  );
+}
+
+function lastPayment(entries: { type: string; date: string; credit: string }[]) {
+  const pay = entries.filter((e) => e.type === 'PAYMENT').at(-1);
+  return pay ? { date: pay.date, amount: pay.credit } : null;
+}
+
+/** Credit terms and how old the unpaid balance is (Phase 2), as of today. */
+function AgeingPanel({ p }: { p: PartyPosition }) {
+  const overdue = dec(p.overdue);
+  const buckets: [string, string][] = [
+    ['0–30 days', p.ageing.d0_30],
+    ['31–60 days', p.ageing.d31_60],
+    ['61–90 days', p.ageing.d61_90],
+    ['Over 90 days', p.ageing.d90plus],
+  ];
+  return (
+    <section aria-label="Ageing" className="grid gap-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+        <p className="text-muted-foreground">
+          Credit {p.creditDays} days
+          {p.creditLimit !== null && <> · limit PKR {formatPKR2(p.creditLimit)}</>}
+        </p>
+        <p
+          className={cn(
+            'font-semibold',
+            overdue.gt(0)
+              ? 'text-rose-600 dark:text-rose-400'
+              : 'text-emerald-600 dark:text-emerald-400',
+          )}
+        >
+          {overdue.gt(0)
+            ? `Overdue PKR ${formatPKR2(overdue)}${p.oldestOverdueDays !== null ? ` · oldest ${p.oldestOverdueDays} days` : ''}`
+            : 'Nothing overdue'}
+        </p>
+      </div>
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {buckets.map(([label, value], i) => (
+          <div
+            key={label}
+            className={cn(
+              'rounded-lg border px-3 py-2',
+              dec(value).gt(0) && [0, 31, 61, 91][i]! > p.creditDays
+                ? 'border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10'
+                : 'bg-muted/40',
+            )}
+          >
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="font-semibold tabular-nums">{formatPKR2(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }

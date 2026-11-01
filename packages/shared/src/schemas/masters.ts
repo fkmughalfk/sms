@@ -13,6 +13,25 @@ import {
 
 const optionalCommissionRate = commissionRateSchema.nullish().transform((v) => v ?? null);
 const phoneSchema = optionalTextSchema(30);
+const blankToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
+/** Blank → null (use the company default, Setting.defaultCreditDays). */
+const creditDaysSchema = z.preprocess(
+  blankToNull,
+  z.coerce
+    .number({ error: 'Enter credit days (0–365).' })
+    .int('Enter whole days.')
+    .min(0, 'Enter credit days (0–365).')
+    .max(365, 'Enter credit days (0–365).')
+    .nullish()
+    .transform((v) => v ?? null),
+);
+/** Blank → null (no limit). Warn only — never blocks an invoice. */
+const creditLimitSchema = z.preprocess(
+  blankToNull,
+  decimalSchema({ maxDecimals: 2, min: 0, message: 'Enter a valid credit limit.' })
+    .nullish()
+    .transform((v) => v ?? null),
+);
 
 export const categorySchema = z.object({
   name: nameSchema(),
@@ -53,6 +72,8 @@ const partyBase = z.object({
   salespersonId: optionalIdSchema,
   phone: phoneSchema,
   openingBalance: decimalSchema({ maxDecimals: 2, message: 'Enter a valid opening balance.' }),
+  creditDays: creditDaysSchema,
+  creditLimit: creditLimitSchema,
 });
 export const partySchema = partyBase.extend({
   openingBalance: partyBase.shape.openingBalance.default('0'),
@@ -159,6 +180,8 @@ export const partyRowSchema = z.object({
   salesperson: ref.nullable(),
   phone: z.string().nullable(),
   openingBalance: z.string(),
+  creditDays: z.number().nullable(),
+  creditLimit: z.string().nullable(),
   isActive: z.boolean(),
 });
 export type PartyRow = z.infer<typeof partyRowSchema>;

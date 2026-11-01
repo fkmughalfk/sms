@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   type AuthUser,
   DEFAULT_COMMISSION_RATE,
+  DEFAULT_CREDIT_DAYS,
   type Settings,
   type UpdateSettingsInput,
 } from '@sms/shared';
@@ -26,6 +27,7 @@ export class SettingsService {
       annualSalesTarget: s?.annualSalesTarget.toString() ?? '10000000000',
       fiscalYearStartMonth: s?.fiscalYearStartMonth ?? 1,
       userEditWindowHours: s?.userEditWindowHours ?? 24,
+      defaultCreditDays: s?.defaultCreditDays ?? DEFAULT_CREDIT_DAYS,
     };
   }
 

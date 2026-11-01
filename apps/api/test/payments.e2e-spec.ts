@@ -18,7 +18,12 @@ type Agent = ReturnType<typeof request.agent>;
  * Party B — Invoice 104 (5,000), paid 6,000 → outstanding −1,000 (advance)
  * Party C — active, no activity → listed with zeros
  * Party D — inactive, no activity → not listed
+ *
+ * Ageing on TODAY (payments clear the oldest debt first; 30 credit days):
+ *   150,000.25 paid → opening balance left 0.25 (unknown date → 90+, overdue)
+ *   Invoice 101 (60 days) 150,000 + Invoice 102 (52 days) 203,125 → 31–60: 353,125, overdue
  */
+const TODAY = '2026-11-01';
 describe('payments & recovery (e2e)', () => {
   let t: TestApp;
   const as = {} as Record<Role, Agent>;
@@ -45,7 +50,7 @@ describe('payments & recovery (e2e)', () => {
     agent.post('/api/v1/payments').send(body);
 
   beforeAll(async () => {
-    t = await createTestApp();
+    t = await createTestApp({ today: TODAY });
     await t.createUser('SUPER_ADMIN', 'super@waqar.pk');
     await t.createUser('ADMIN', 'admin@waqar.pk');
     await t.createUser('USER', 'user@waqar.pk');
@@ -163,7 +168,34 @@ describe('payments & recovery (e2e)', () => {
         outstanding: '353125.25',
         recoveryRate: expect.stringMatching(/^0\.2981/),
         lastPaymentDate: '2026-09-10',
+        creditDays: 30,
+        creditLimit: null,
+        overdue: '353125.25',
+        overdueInvoices: 2,
+        oldestOverdueDays: 60,
+        ageing: { d0_30: '0', d31_60: '353125', d61_90: '0', d90plus: '0.25' },
       });
+    });
+
+    it("uses the party's own credit days and limit when set (Phase 2)", async () => {
+      await as.ADMIN.patch(`/api/v1/parties/${ids.a}`)
+        .send({ creditDays: 55, creditLimit: '400000' })
+        .expect(200);
+      let res = await as.USER.get(`/api/v1/recovery/parties/${ids.a}/position`).expect(200);
+      // Invoice 102 is 52 days old — not overdue with 55 credit days.
+      expect(res.body).toMatchObject({
+        creditDays: 55,
+        creditLimit: '400000',
+        overdue: '150000.25',
+        overdueInvoices: 1,
+        oldestOverdueDays: 60,
+      });
+
+      await as.ADMIN.patch(`/api/v1/parties/${ids.a}`)
+        .send({ creditDays: '', creditLimit: '' })
+        .expect(200);
+      res = await as.USER.get(`/api/v1/recovery/parties/${ids.a}/position`).expect(200);
+      expect(res.body).toMatchObject({ creditDays: 30, creditLimit: null, overdue: '353125.25' });
     });
 
     it('shows an advance as negative outstanding (Party B)', async () => {
@@ -219,6 +251,7 @@ describe('payments & recovery (e2e)', () => {
         recovered: '156000.25',
         outstanding: '352125.25',
         recoveryRate: expect.stringMatching(/^0\.307/),
+        overdue: '353125.25',
       });
     });
 
@@ -229,6 +262,15 @@ describe('payments & recovery (e2e)', () => {
       ]);
       const byName = await as.USER.get('/api/v1/recovery/parties?search=party b').expect(200);
       expect(byName.body.data).toHaveLength(1);
+      const overdue = await as.USER.get(
+        '/api/v1/recovery/parties?overdueOnly=true&sort=overdue:desc',
+      ).expect(200);
+      expect(
+        overdue.body.data.map((r: { party: { name: string }; overdue: string }) => [
+          r.party.name,
+          r.overdue,
+        ]),
+      ).toEqual([['Party A', '353125.25']]);
     });
   });
 

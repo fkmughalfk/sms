@@ -3,3 +3,4 @@ export * from './product';
 export * from './line';
 export * from './metrics';
 export * from './ledger';
+export * from './ageing';

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  ageReceivables,
+  type Ageing,
   buildLedger,
   dec,
   type LedgerQuery,
@@ -13,17 +15,43 @@ import {
   recoveryRate,
   sum,
 } from '@sms/shared';
+import { Clock } from '../common/clock';
 import { fromDbDate, toDbDate } from '../common/db-date';
 import { parseSort } from '../common/sorting';
 import { nameContains } from '../masters/master-utils';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 
 const ref = { select: { id: true, name: true } } as const;
 
 type Row = RecoveryRow;
 const str = (v: { toString(): string } | null | undefined) => v?.toString() ?? '0';
 
-function positionView(party: { id: string; name: string }, p: Position, lastPayment: Date | null) {
+interface Credit {
+  creditDays: number;
+  creditLimit: string | null;
+  ageing: Ageing;
+}
+
+interface CreditTerms {
+  openingBalance: { toString(): string };
+  creditDays: number | null;
+  creditLimit: { toString(): string } | null;
+}
+
+type InvoiceDebt = { date: string; amount: string };
+const toDebt = (i: { invoiceDate: Date; totalAmount: { toString(): string } }): InvoiceDebt => ({
+  date: fromDbDate(i.invoiceDate),
+  amount: i.totalAmount.toString(),
+});
+
+function positionView(
+  party: { id: string; name: string },
+  p: Position,
+  lastPayment: Date | null,
+  credit: Credit,
+) {
+  const { buckets } = credit.ageing;
   return {
     party: { id: party.id, name: party.name },
     openingBalance: p.openingBalance.toString(),
@@ -33,56 +61,103 @@ function positionView(party: { id: string; name: string }, p: Position, lastPaym
     outstanding: p.outstanding.toString(),
     recoveryRate: p.recoveryRate.toString(),
     lastPaymentDate: lastPayment ? fromDbDate(lastPayment) : null,
+    creditDays: credit.creditDays,
+    creditLimit: credit.creditLimit,
+    overdue: credit.ageing.overdue.toString(),
+    overdueInvoices: credit.ageing.overdueInvoices,
+    oldestOverdueDays: credit.ageing.oldestOverdueDays,
+    ageing: {
+      d0_30: buckets.d0_30.toString(),
+      d31_60: buckets.d31_60.toString(),
+      d61_90: buckets.d61_90.toString(),
+      d90plus: buckets.d90plus.toString(),
+    },
   };
 }
 
 /**
  * Recovery figures (spec §5.4). Always whole-party totals — they are what a payment is
- * recorded against — computed with SQL sums, never by loading invoice lines (spec §7).
- * Soft-deleted invoices and payments are excluded.
+ * recorded against. Only invoice headers (date + total) are loaded, for ageing — never
+ * invoice lines (spec §7). Payments clear the oldest debt first; anything older than the
+ * party's credit days is overdue (Phase 2). Soft-deleted invoices and payments are excluded.
  */
 @Injectable()
 export class RecoveryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settings: SettingsService,
+    private readonly clock: Clock,
+  ) {}
 
-  /** Live "Party Position" for the payment form (Payments F5:G8). */
+  /** Live "Party Position" for the payment form (Payments F5:G8) and credit warnings. */
   async position(partyId: string): Promise<PartyPosition> {
     const party = await this.prisma.party.findUnique({
       where: { id: partyId },
-      select: { id: true, name: true, openingBalance: true },
+      select: { id: true, name: true, openingBalance: true, creditDays: true, creditLimit: true },
     });
     if (!party) throw new NotFoundException('Party not found.');
 
-    const [sales, recovered] = await Promise.all([
-      this.prisma.invoice.aggregate({
+    const [invoices, recovered, settings] = await Promise.all([
+      this.prisma.invoice.findMany({
         where: { partyId, deletedAt: null },
-        _sum: { totalAmount: true },
+        select: { invoiceDate: true, totalAmount: true },
       }),
       this.prisma.payment.aggregate({
         where: { partyId, deletedAt: null },
         _sum: { amount: true },
         _max: { paymentDate: true },
       }),
+      this.settings.get(),
     ]);
+    const debts = invoices.map(toDebt);
     const p = partyPosition({
       openingBalance: party.openingBalance.toString(),
-      sales: str(sales._sum.totalAmount),
+      sales: sum(debts.map((d) => d.amount)).toString(),
       recovered: str(recovered._sum.amount),
     });
-    return positionView(party, p, recovered._max.paymentDate);
+    const credit = this.credit(party, debts, p.recovered.toString(), settings.defaultCreditDays);
+    return positionView(party, p, recovered._max.paymentDate, credit);
+  }
+
+  private credit(
+    party: CreditTerms,
+    invoices: InvoiceDebt[],
+    recovered: string,
+    defaultCreditDays: number,
+    today = this.clock.today(),
+  ): Credit {
+    const creditDays = party.creditDays ?? defaultCreditDays;
+    return {
+      creditDays,
+      creditLimit: party.creditLimit?.toString() ?? null,
+      ageing: ageReceivables({
+        openingBalance: party.openingBalance.toString(),
+        invoices,
+        recovered,
+        today,
+        creditDays,
+      }),
+    };
   }
 
   /** Recovery summary by party (Payments J20:N…), largest outstanding first. */
   async summary(query: RecoveryQuery): Promise<RecoverySummary> {
-    const [parties, sales, payments] = await Promise.all([
+    const [parties, invoices, payments, settings] = await Promise.all([
       this.prisma.party.findMany({
         where: { ...nameContains(query.search), ...(query.cityId ? { cityId: query.cityId } : {}) },
-        select: { id: true, name: true, openingBalance: true, isActive: true, city: ref },
+        select: {
+          id: true,
+          name: true,
+          openingBalance: true,
+          creditDays: true,
+          creditLimit: true,
+          isActive: true,
+          city: ref,
+        },
       }),
-      this.prisma.invoice.groupBy({
-        by: ['partyId'],
+      this.prisma.invoice.findMany({
         where: { deletedAt: null },
-        _sum: { totalAmount: true },
+        select: { partyId: true, invoiceDate: true, totalAmount: true },
       }),
       this.prisma.payment.groupBy({
         by: ['partyId'],
@@ -90,20 +165,35 @@ export class RecoveryService {
         _sum: { amount: true },
         _max: { paymentDate: true },
       }),
+      this.settings.get(),
     ]);
-    const salesBy = new Map(sales.map((s) => [s.partyId, s._sum.totalAmount]));
+    const debtsBy = new Map<string, InvoiceDebt[]>();
+    for (const i of invoices) {
+      const list = debtsBy.get(i.partyId) ?? [];
+      list.push(toDebt(i));
+      debtsBy.set(i.partyId, list);
+    }
     const paidBy = new Map(payments.map((p) => [p.partyId, p]));
+    const today = this.clock.today();
 
     const rows = parties
       .map((party) => {
         const paid = paidBy.get(party.id);
+        const debts = debtsBy.get(party.id) ?? [];
         const p = partyPosition({
           openingBalance: party.openingBalance.toString(),
-          sales: str(salesBy.get(party.id)),
+          sales: sum(debts.map((d) => d.amount)).toString(),
           recovered: str(paid?._sum.amount),
         });
+        const credit = this.credit(
+          party,
+          debts,
+          p.recovered.toString(),
+          settings.defaultCreditDays,
+          today,
+        );
         return {
-          ...positionView(party, p, paid?._max.paymentDate ?? null),
+          ...positionView(party, p, paid?._max.paymentDate ?? null, credit),
           city: party.city,
           isActive: party.isActive,
           hasActivity: !p.invoiced.isZero() || !p.recovered.isZero(),
@@ -112,12 +202,14 @@ export class RecoveryService {
       })
       // Active parties always; inactive ones only while they have figures.
       .filter((r) => r.isActive || r.hasActivity)
-      .filter((r) => !query.outstandingOnly || r.outstandingDec.gt(0));
+      .filter((r) => !query.outstandingOnly || r.outstandingDec.gt(0))
+      .filter((r) => !query.overdueOnly || dec(r.overdue).gt(0));
 
     // Sort in memory (one row per party), then page; totals cover every matching party.
     const { field, dir } = parseSort(query.sort, 'outstanding:desc');
     const byDecimal =
-      (k: 'invoiced' | 'recovered' | 'outstanding' | 'recoveryRate') => (a: Row, b: Row) =>
+      (k: 'invoiced' | 'recovered' | 'outstanding' | 'recoveryRate' | 'overdue') =>
+      (a: Row, b: Row) =>
         dec(a[k]).comparedTo(b[k]);
     const comparers: Record<string, (a: Row, b: Row) => number> = {
       party: (a, b) => a.party.name.localeCompare(b.party.name),
@@ -126,6 +218,7 @@ export class RecoveryService {
       recovered: byDecimal('recovered'),
       outstanding: byDecimal('outstanding'),
       recoveryRate: byDecimal('recoveryRate'),
+      overdue: byDecimal('overdue'),
       // Parties that never paid sort last either way.
       lastPaymentDate: (a, b) =>
         (a.lastPaymentDate ?? (dir === 'asc' ? '9999' : '0000')).localeCompare(
@@ -152,6 +245,7 @@ export class RecoveryService {
         recovered: recovered.toString(),
         outstanding: invoiced.minus(recovered).toString(),
         recoveryRate: recoveryRate(recovered, invoiced).toString(),
+        overdue: sum(rows.map((r) => r.overdue)).toString(),
       },
     };
   }

@@ -32,6 +32,8 @@ import { PeriodFilter } from '@/components/reports/period-filter';
 import { RecoveryByParty } from '@/components/reports/recovery-by-party';
 import { SalesTable } from '@/components/reports/sales-table';
 import { Section } from '@/components/reports/section';
+import { NeedsAttention } from '@/components/reports/needs-attention';
+import { useAuth } from '@/lib/auth';
 import { DailyTrendChart, MonthlyTargetChart } from '@/components/reports/trend-charts';
 import { periodDays, usePeriod, useReport } from '@/lib/reports';
 import { useSettings } from '@/lib/use-invoice';
@@ -41,6 +43,7 @@ import { PageHeading } from '@/components/form-section';
 const TOP = 10;
 
 function DashboardContent() {
+  const { can } = useAuth();
   const settings = useSettings();
   const { period, setPeriod } = usePeriod(settings.data);
   const daily = periodDays(period) <= 62;
@@ -112,6 +115,8 @@ function DashboardContent() {
           sub={d && `${formatQty(d.kpis.packs)} packs`}
         />
       </div>
+
+      {can('payment.read') && <NeedsAttention />}
 
       {/* Annual sales target (rows 11–16) + monthly actual vs target */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">

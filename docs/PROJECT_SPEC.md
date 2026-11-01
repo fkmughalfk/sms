@@ -470,7 +470,16 @@ Validation messages (from VBA `SavePayment`): "Enter a date.", "Select a party."
 
 **Payments list**: filters (date range, party, bank), totals.
 
-**Recovery summary by party** (Payments J20:N…): Party, Invoiced, Recovered, Outstanding, % Recovered, Last Payment date. Click a party → **Party ledger**: chronological invoices (debit) and payments (credit) with running balance. Printable.
+**Recovery summary by party** (Payments J20:N…): Party, Invoiced, Recovered, Outstanding, Overdue, % Recovered, Last Payment date; filters "only parties that owe" and "only overdue". Click a party → **Party ledger**: chronological invoices (debit) and payments (credit) with running balance. Printable.
+
+**Credit control** (Phase 2 — warn only, never blocks):
+- Each party has **credit days** (blank = Settings default, 30) and an optional **credit limit** (blank = no limit).
+- **Ageing** (`packages/shared/src/calc/ageing.ts`): payments clear the oldest debt first — opening balance, then invoices by date. What is left unpaid is aged from its invoice date to today (Asia/Karachi) into 0–30 / 31–60 / 61–90 / 90+ days; an unpaid opening balance has no date and counts as 90+ and overdue. **Overdue** = unpaid amount older than the party's credit days.
+- The party position (`GET /recovery/parties/:id/position`) and the recovery summary return credit days, limit, overdue, overdue invoice count, oldest overdue age and the ageing buckets.
+- **Invoice form**: once a party is chosen, an amber warning shows its overdue amount and/or how far outstanding + this invoice goes over the credit limit. Saving is still allowed.
+- **Party ledger**: ageing panel (credit terms, overdue, buckets) as of today.
+- **Dashboard**: "Needs attention today" — the 5 parties with the most overdue, and the overdue total.
+- **WhatsApp** (party ledger and invoice view): opens `wa.me` with a ready statement or invoice summary, addressed to the party's phone when it is a valid Pakistani mobile number. Nothing is sent automatically.
 
 ### 5.5 Dashboard (replaces **Dashboard** sheet)
 
@@ -505,7 +514,7 @@ New, nice-to-have: sales trend (daily/monthly line chart), top 10 parties, sales
 CRUD screens (ADMIN+; USER read-only) with search, active/inactive toggle, and CSV/Excel import:
 - **Categories**: name, commission rate (blank = default 0.35%).
 - **Products**: # (sku), name, unit weight (KG), pack (pcs), pack weight (calculated, read-only), category, optional commission override, active.
-- **Parties**: name, default city, default ASM, phone, opening balance, active. The default city and ASM pre-fill new invoices.
+- **Parties**: name, default city, default ASM, phone, opening balance, credit days, credit limit, active. The default city and ASM pre-fill new invoices.
 - **Sub-parties**: name, optional parent party.
 - **Cities**, **Salespersons (ASM)**, **Banks**.
 
@@ -513,7 +522,7 @@ CRUD screens (ADMIN+; USER read-only) with search, active/inactive toggle, and C
 List, create, edit, deactivate, reset password, assign role (within limits in §3), link USER to a salesperson.
 
 ### 5.8 Settings (SUPER_ADMIN)
-Company name & address (shown in header and on printed invoices), default commission rate, annual sales target, fiscal year start month, user edit window.
+Company name & address (shown in header and on printed invoices), default commission rate, annual sales target, fiscal year start month, user edit window, default credit days (30).
 
 ### 5.9 Audit log (SUPER_ADMIN, ADMIN)
 Every create/update/delete of invoices, payments, masters, users, settings; logins; imports. Filter by user, entity, date. Show before/after diff.

@@ -95,6 +95,21 @@ export const partyPositionSchema = z.object({
   /** recovered ÷ invoiced (0–1+). */
   recoveryRate: z.string(),
   lastPaymentDate: z.string().nullable(),
+  /** Party credit days, or the company default (Phase 2). */
+  creditDays: z.number(),
+  /** null = no limit. */
+  creditLimit: z.string().nullable(),
+  /** Unpaid amount older than the credit days — payments clear the oldest debt first. */
+  overdue: z.string(),
+  overdueInvoices: z.number(),
+  oldestOverdueDays: z.number().nullable(),
+  /** Unpaid amount by age; an unpaid opening balance counts as 90+. */
+  ageing: z.object({
+    d0_30: z.string(),
+    d31_60: z.string(),
+    d61_90: z.string(),
+    d90plus: z.string(),
+  }),
 });
 export type PartyPosition = z.infer<typeof partyPositionSchema>;
 
@@ -114,6 +129,7 @@ export const recoverySummarySchema = z.object({
     recovered: z.string(),
     outstanding: z.string(),
     recoveryRate: z.string(),
+    overdue: z.string(),
   }),
 });
 export type RecoverySummary = z.infer<typeof recoverySummarySchema>;
@@ -123,6 +139,8 @@ export const recoveryQuerySchema = paginationQuerySchema.extend({
   cityId: optionalFilterId,
   /** Only parties that still owe money. */
   outstandingOnly: booleanQuerySchema.optional(),
+  /** Only parties with an overdue amount. */
+  overdueOnly: booleanQuerySchema.optional(),
 });
 export type RecoveryQuery = z.infer<typeof recoveryQuerySchema>;
 

@@ -52,6 +52,7 @@ model Setting {
   annualSalesTarget     Decimal  @default(10000000000) @db.Decimal(18, 2)
   fiscalYearStartMonth  Int      @default(1)
   userEditWindowHours   Int      @default(24)
+  defaultCreditDays     Int      @default(30) // parties without their own credit days
   updatedAt             DateTime @updatedAt
 }
 
@@ -95,6 +96,8 @@ model Party {
   salesperson    Salesperson? @relation(fields: [salespersonId], references: [id])
   phone          String?
   openingBalance Decimal      @default(0) @db.Decimal(18, 2)
+  creditDays     Int? // null → Setting.defaultCreditDays
+  creditLimit    Decimal?     @db.Decimal(18, 2) // null → no limit (warn only)
   isActive       Boolean      @default(true)
   subParties     SubParty[]
   invoices       Invoice[]

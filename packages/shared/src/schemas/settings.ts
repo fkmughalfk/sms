@@ -18,6 +18,11 @@ export const updateSettingsSchema = z
       .int('Enter whole hours.')
       .min(0, 'Enter hours (0–720).')
       .max(24 * 30, 'Enter hours (0–720).'),
+    defaultCreditDays: z.coerce
+      .number({ error: 'Enter credit days (0–365).' })
+      .int('Enter whole days.')
+      .min(0, 'Enter credit days (0–365).')
+      .max(365, 'Enter credit days (0–365).'),
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -30,5 +35,7 @@ export const settingsSchema = z.object({
   annualSalesTarget: z.string(),
   fiscalYearStartMonth: z.number(),
   userEditWindowHours: z.number(),
+  /** Credit days for parties without their own (Phase 2). */
+  defaultCreditDays: z.number(),
 });
 export type Settings = z.infer<typeof settingsSchema>;

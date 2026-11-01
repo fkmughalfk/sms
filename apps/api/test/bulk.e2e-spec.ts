@@ -126,14 +126,12 @@ describe('bulk actions (e2e)', () => {
       .send({ ids: [i1.id] })
       .expect(200);
     expect(again.body).toEqual({ done: 0, skipped: [{ id: i1.id, reason: 'Invoice not found.' }] });
-    expect(await t.prisma.invoice.count({ where: { id: { in: [i1.id, i2.id] } } })).toBe(2); // soft
+    expect(await t.prisma.invoice.count({ where: { id: { in: [i1.id, i2.id] } } })).toBe(0);
 
     await admin
       .post('/api/v1/payments/bulk-delete')
       .send({ ids: [p1.id, p2.id] })
       .expect(200, { done: 2, skipped: [] });
-    expect(
-      await t.prisma.payment.count({ where: { id: { in: [p1.id, p2.id] }, deletedAt: null } }),
-    ).toBe(0);
+    expect(await t.prisma.payment.count({ where: { id: { in: [p1.id, p2.id] } } })).toBe(0);
   });
 });

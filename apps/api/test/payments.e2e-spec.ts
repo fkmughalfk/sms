@@ -293,15 +293,14 @@ describe('payments & recovery (e2e)', () => {
       await as.ADMIN.get('/api/v1/payments/export?month=2026-09').expect(200);
     });
 
-    it('deleting is a soft delete', async () => {
+    it('deleting removes the payment from the DB', async () => {
       const res = await pay(as.ADMIN, {
         paymentDate: '2026-09-20',
         partyId: ids.c,
         amount: 10,
       }).expect(201);
       await as.SUPER_ADMIN.delete(`/api/v1/payments/${res.body.id}`).expect(204);
-      const row = await t.prisma.payment.findUniqueOrThrow({ where: { id: res.body.id } });
-      expect(row.deletedAt).not.toBeNull();
+      expect(await t.prisma.payment.count({ where: { id: res.body.id } })).toBe(0);
       await as.ADMIN.get(`/api/v1/payments/${res.body.id}`).expect(404);
     });
   });

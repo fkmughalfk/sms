@@ -167,12 +167,12 @@ export class PaymentsService {
     return this.get(user, id);
   }
 
-  /** Soft delete (CLAUDE.md rule 6). */
-  /** Soft-deletes each id like `remove` (own transaction + audit); misses are skipped. */
+  /** Deletes each id like `remove` (own transaction + audit); misses are skipped. */
   bulkRemove(user: AuthUser, ids: string[], ip: string | null): Promise<BulkResult> {
     return runBulk(ids, (id) => this.remove(user, id, ip));
   }
 
+  /** Hard delete (CLAUDE.md rule 6); the audit entry keeps the payment's data. */
   async remove(user: AuthUser, id: string, ip: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.payment.findFirst({
@@ -180,10 +180,7 @@ export class PaymentsService {
         select: paymentSelect,
       });
       if (!existing) throw new NotFoundException('Payment not found.');
-      await tx.payment.update({
-        where: { id },
-        data: { deletedAt: new Date(), updatedById: user.id },
-      });
+      await tx.payment.delete({ where: { id } });
       await this.audit.log(
         {
           userId: user.id,

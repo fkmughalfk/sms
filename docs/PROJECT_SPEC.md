@@ -154,7 +154,7 @@ Permissions live in `packages/shared/src/permissions.ts` and are enforced in **b
 | Manage products, parties, sub-parties, cities, salespersons, banks | ✅ | ✅ | ❌ (read only) |
 | Create invoice | ✅ | ✅ | ✅ |
 | Edit invoice | ✅ any | ✅ any | ✅ own, same day only* |
-| Delete (soft) invoice | ✅ | ✅ | ❌ |
+| Delete invoice | ✅ | ✅ | ❌ |
 | Record payment | ✅ | ✅ | ✅ |
 | Edit / delete payment | ✅ | ✅ | ❌ |
 | View dashboard & reports | ✅ all | ✅ all | ✅ own data only** |
@@ -176,7 +176,7 @@ Rules:
 
 ## 4. Database schema (Prisma)
 
-All money is stored as `Decimal`. All tables have `createdAt`, `updatedAt`. Master tables use `isActive` instead of hard delete. Invoices and payments use `deletedAt` (soft delete).
+All money is stored as `Decimal`. All tables have `createdAt`, `updatedAt`. Master tables use `isActive` instead of hard delete. Invoices and payments are hard deleted (removed from the DB, with a full snapshot in `AuditLog`); a deleted invoice number can be reused. The `deletedAt` column remains only for legacy rows.
 
 ```prisma
 generator client { provider = "prisma-client-js" }
@@ -434,7 +434,7 @@ model AuditLog {
 **Actions** (replacing VBA buttons)
 - **Save** (`btnSave`) — validates and saves. If the invoice number already exists, the UI asks "Invoice N already exists — open it for edit?" rather than silently overwriting.
 - **Edit** (`btnEdit`) — `/invoices/[id]/edit` loads all lines.
-- **Delete** (`btnDelete`) — soft delete with confirmation "Delete all N line(s) of invoice X?".
+- **Delete** (`btnDelete`) — permanent delete with confirmation "Delete all N line(s) of invoice X?".
 - **Clear** (`btnClear`) — reset form.
 - **Print** — new: printable invoice with company header.
 
@@ -662,7 +662,7 @@ A CLI (`pnpm import:excel path/to/file.xlsx [--dry-run]`) and an admin UI that:
 ## 12. Non-functional requirements
 
 - **Security:** argon2 hashes, httpOnly + Secure + SameSite=Lax cookies, refresh token rotation, helmet, rate limiting on auth, permission checks on every endpoint, no secrets in the repo.
-- **Integrity:** invoice and payment saves in transactions; server recomputes all calculated fields; soft delete only.
+- **Integrity:** invoice and payment saves in transactions; server recomputes all calculated fields; invoice and payment deletes are permanent and audited.
 - **Performance:** dashboard < 1 s for 100k lines (indexes on dates, party, salesperson, product; SQL aggregates).
 - **Quality:** TypeScript strict, ESLint clean, unit tests for all calc + permission logic, e2e tests for auth, invoice CRUD, payments and dashboard numbers.
 - **Backups:** rely on Neon/Supabase point-in-time recovery; Excel export available to ADMIN+.

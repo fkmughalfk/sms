@@ -283,7 +283,7 @@ export default function InvoicesPage() {
           onSelectAll={() => fetchAllIds('/invoices', params)}
           describe={{
             delete:
-              'They disappear from lists and totals with all their lines; their numbers stay reserved. Each delete is in the audit log.',
+              'This permanently removes them and all their lines from the database and frees their numbers. It can’t be undone. Each delete is in the audit log.',
           }}
         />
       )}
@@ -617,7 +617,7 @@ export default function InvoicesPage() {
         path={deleting && `/invoices/${deleting.id}`}
         onOpenChange={(open) => !open && setDeleting(null)}
         title={`Delete invoice ${deleting?.invoiceNo}?`}
-        description={`Delete all ${deleting?.lineCount} line(s) of invoice ${deleting?.invoiceNo}? It will disappear from lists and totals; the number stays reserved.`}
+        description={`Delete all ${deleting?.lineCount} line(s) of invoice ${deleting?.invoiceNo}? This permanently removes it from the database and frees the number. It can’t be undone.`}
         successMessage={`Invoice ${deleting?.invoiceNo} deleted.`}
         invalidate={[['invoices'], ['reports'], ['recovery']]}
       />

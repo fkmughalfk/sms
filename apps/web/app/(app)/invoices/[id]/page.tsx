@@ -94,7 +94,7 @@ export default function InvoicePage() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title={`Delete invoice ${invoice.invoiceNo}?`}
-        description={`Delete all ${invoice.lineCount} line(s) of invoice ${invoice.invoiceNo}? It will disappear from lists and totals; the number stays reserved.`}
+        description={`Delete all ${invoice.lineCount} line(s) of invoice ${invoice.invoiceNo}? This permanently removes it from the database and frees the number. It can’t be undone.`}
         confirmLabel="Delete invoice"
         destructive
         busy={remove.isPending}

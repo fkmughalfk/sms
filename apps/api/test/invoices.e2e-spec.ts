@@ -210,13 +210,13 @@ describe('invoices (e2e)', () => {
       expect(res.body.message).toBe('Line 1: select an active product.');
     });
 
-    it('next-number suggests max + 1 (deleted numbers stay reserved)', async () => {
+    it('next-number suggests max + 1 (a deleted number can be reused)', async () => {
       const res = await as.USER.get('/api/v1/invoices/next-number').expect(200);
-      expect(res.body).toEqual({ invoiceNo: 17 }); // 16 was created then soft-deleted
+      expect(res.body).toEqual({ invoiceNo: 16 }); // 16 was created then hard-deleted
       const reuse = await as.ADMIN.post('/api/v1/invoices')
         .send({ ...invoice15(), invoiceNo: 16 })
-        .expect(409);
-      expect(reuse.body.invoiceId).toBeNull();
+        .expect(201);
+      await as.ADMIN.delete(`/api/v1/invoices/${reuse.body.id}`).expect(204);
     });
   });
 
@@ -326,7 +326,7 @@ describe('invoices (e2e)', () => {
       await t.prisma.user.update({ where: { id: userId }, data: { salespersonId: null } });
     });
 
-    it('ADMIN can edit any invoice and soft-delete it', async () => {
+    it('ADMIN can edit any invoice and delete it from the DB', async () => {
       const res = await as.ADMIN.post('/api/v1/invoices')
         .send({
           ...invoice15(),
@@ -336,12 +336,14 @@ describe('invoices (e2e)', () => {
         .expect(201);
       await as.ADMIN.delete(`/api/v1/invoices/${res.body.id}`).expect(204);
       await as.ADMIN.get(`/api/v1/invoices/${res.body.id}`).expect(404);
-      const row = await t.prisma.invoice.findUniqueOrThrow({ where: { id: res.body.id } });
-      expect(row.deletedAt).not.toBeNull(); // soft delete (rule 6)
+      expect(await t.prisma.invoice.count({ where: { id: res.body.id } })).toBe(0); // rule 6
+      expect(await t.prisma.invoiceLine.count({ where: { invoiceId: res.body.id } })).toBe(0);
       const audit = await t.prisma.auditLog.findMany({
         where: { entity: 'Invoice', entityId: res.body.id },
       });
       expect(audit.map((a) => a.action).sort()).toEqual(['CREATE', 'DELETE']);
+      const del = audit.find((a) => a.action === 'DELETE')!;
+      expect(del.before).toMatchObject({ invoiceNo: 41, lines: [{ qtyPacks: 1 }] });
     });
 
     it('export is ADMIN+ only', async () => {

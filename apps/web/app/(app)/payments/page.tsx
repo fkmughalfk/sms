@@ -217,7 +217,7 @@ export default function PaymentsPage() {
           onSelectAll={() => fetchAllIds('/payments', params)}
           describe={{
             delete:
-              "They disappear from lists and totals, and each party's outstanding goes up by the amounts. Each delete is in the audit log.",
+              "This permanently removes them from the database, and each party's outstanding goes up by the amounts. It can’t be undone. Each delete is in the audit log.",
           }}
         />
       )}
@@ -418,7 +418,7 @@ export default function PaymentsPage() {
         title="Delete this payment?"
         description={
           deleting &&
-          `${formatPKR2(deleting.amount)} from ${deleting.party.name} on ${toDisplayDate(deleting.paymentDate)}. The party's outstanding goes up by this amount.`
+          `${formatPKR2(deleting.amount)} from ${deleting.party.name} on ${toDisplayDate(deleting.paymentDate)}. The party's outstanding goes up by this amount. This permanently removes it and can’t be undone.`
         }
         confirmLabel="Delete payment"
         destructive

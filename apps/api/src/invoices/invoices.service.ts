@@ -233,7 +233,7 @@ export class InvoicesService {
   }
 
   async nextNumber(): Promise<{ invoiceNo: number }> {
-    // Includes soft-deleted invoices: their numbers stay reserved.
+    // Deleted invoices are gone from the DB, so the top number can be reused.
     const max = await this.prisma.invoice.aggregate({ _max: { invoiceNo: true } });
     return { invoiceNo: (max._max.invoiceNo ?? 0) + 1 };
   }
@@ -341,28 +341,23 @@ export class InvoicesService {
     return this.get(user, id);
   }
 
-  /** Soft delete (CLAUDE.md rule 6). The invoice number stays reserved. */
-  /** Soft-deletes each id like `remove` (own transaction + audit); misses are skipped. */
+  /** Deletes each id like `remove` (own transaction + audit); misses are skipped. */
   bulkRemove(user: AuthUser, ids: string[], ip: string | null): Promise<BulkResult> {
     return runBulk(ids, (id) => this.remove(user, id, ip));
   }
 
+  /**
+   * Hard delete (CLAUDE.md rule 6): the invoice and its lines leave the DB and the
+   * number is free again. The audit entry keeps a full snapshot.
+   */
   async remove(user: AuthUser, id: string, ip: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.findFirst({
         where: { id, deletedAt: null, ...invoiceScope(user) },
-        select: {
-          id: true,
-          invoiceNo: true,
-          totalAmount: true,
-          _count: { select: { lines: true } },
-        },
+        include: { lines: { orderBy: { lineNo: 'asc' } } },
       });
       if (!inv) throw new NotFoundException('Invoice not found.');
-      await tx.invoice.update({
-        where: { id },
-        data: { deletedAt: new Date(), updatedById: user.id },
-      });
+      await tx.invoice.delete({ where: { id } }); // lines cascade
       await this.audit.log(
         {
           userId: user.id,
@@ -371,8 +366,23 @@ export class InvoicesService {
           entityId: id,
           before: {
             invoiceNo: inv.invoiceNo,
+            invoiceDate: fromDbDate(inv.invoiceDate),
+            partyId: inv.partyId,
+            cityId: inv.cityId,
+            subPartyId: inv.subPartyId,
+            salespersonId: inv.salespersonId,
+            totalPacks: inv.totalPacks,
             totalAmount: inv.totalAmount.toString(),
-            lines: inv._count.lines,
+            totalCommission: inv.totalCommission.toString(),
+            lines: inv.lines.map((l) => ({
+              lineNo: l.lineNo,
+              productId: l.productId,
+              qtyPacks: l.qtyPacks,
+              rate40Kg: l.rate40Kg.toString(),
+              packWeightKg: l.packWeightKg.toString(),
+              commissionRate: l.commissionRate.toString(),
+              amount: l.amount.toString(),
+            })),
           },
           ip,
         },

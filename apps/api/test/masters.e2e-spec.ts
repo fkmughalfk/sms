@@ -150,7 +150,7 @@ describe('masters (e2e)', () => {
       await as.ADMIN.get(`/api/v1/cities/${city.id}`).expect(200);
     });
 
-    it('products used on an invoice — even a deleted one — cannot be deleted', async () => {
+    it('masters used on an invoice cannot be deleted until the invoice is', async () => {
       const cat = await create('categories', { name: 'Del Cat' });
       const product = await create('products', {
         sku: 9901,
@@ -167,12 +167,16 @@ describe('masters (e2e)', () => {
           lines: [{ productId: product.id, qtyPacks: 1, rate40Kg: 8000 }],
         })
         .expect(201);
-      await as.ADMIN.delete(`/api/v1/invoices/${inv.body.id}`).expect(204);
-
       const res = await as.ADMIN.delete(`/api/v1/products/${product.id}`).expect(409);
       expect(res.body.message).toContain('1 invoice line');
       await as.ADMIN.delete(`/api/v1/categories/${cat.id}`).expect(409);
       await as.ADMIN.delete(`/api/v1/parties/${party.id}`).expect(409);
+
+      // Deleting the invoice removes it from the DB, so nothing references them any more.
+      await as.ADMIN.delete(`/api/v1/invoices/${inv.body.id}`).expect(204);
+      await as.ADMIN.delete(`/api/v1/products/${product.id}`).expect(204);
+      await as.ADMIN.delete(`/api/v1/categories/${cat.id}`).expect(204);
+      await as.ADMIN.delete(`/api/v1/parties/${party.id}`).expect(204);
     });
 
     it('every master has the route', async () => {

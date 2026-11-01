@@ -428,4 +428,41 @@ describe('invoices (e2e)', () => {
       expect(total.getCell(9).value).toBe(200); // Bags
     });
   });
+
+  describe('last rates (phase 1 — pre-fill Rate 40Kg)', () => {
+    it('returns the newest rate per product for that party only, skipping deleted invoices', async () => {
+      const post = (invoiceNo: number, date: string, partyId: string | undefined, rate: string) =>
+        as.ADMIN.post('/api/v1/invoices')
+          .send({
+            invoiceNo,
+            invoiceDate: date,
+            partyId,
+            lines: [{ productId: ids.masar, qtyPacks: 1, rate40Kg: rate }],
+          })
+          .expect(201);
+      await post(60, '2026-10-05', ids.party, '8500');
+      await post(61, '2026-10-06', ids.otherParty, '7000');
+      const gone = await post(62, '2026-10-07', ids.party, '9999');
+      await as.ADMIN.delete(`/api/v1/invoices/${gone.body.id}`).expect(204);
+
+      const res = await as.ADMIN.get(`/api/v1/invoices/last-rates?partyId=${ids.party}`).expect(
+        200,
+      );
+      const byProduct = new Map(res.body.map((r: { productId: string }) => [r.productId, r]));
+      expect(byProduct.get(ids.masar)).toEqual({
+        productId: ids.masar,
+        rate40Kg: '8500',
+        invoiceNo: 60,
+        invoiceDate: '2026-10-05',
+      });
+      expect(byProduct.get(ids.mash)).toMatchObject({ rate40Kg: '16250', invoiceNo: 15 });
+
+      const other = await as.ADMIN.get(`/api/v1/invoices/last-rates?partyId=${ids.otherParty}`);
+      expect(other.body).toContainEqual(
+        expect.objectContaining({ productId: ids.masar, rate40Kg: '7000', invoiceNo: 61 }),
+      );
+
+      await as.ADMIN.get('/api/v1/invoices/last-rates').expect(400);
+    });
+  });
 });

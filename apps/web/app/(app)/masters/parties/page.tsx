@@ -14,7 +14,7 @@ export default function PartiesPage() {
   return (
     <MasterListPage
       title="Parties"
-      description="Customers. The default city pre-fills new invoices."
+      description="Customers. The default city and ASM pre-fill new invoices."
       path="parties"
       listSchema={partyListSchema}
       filterParams={{ cityId: cityId ?? undefined }}
@@ -32,6 +32,12 @@ export default function PartiesPage() {
       columns={[
         { header: 'Name', cell: (r) => r.name, sortKey: 'name' },
         { header: 'City', cell: (r) => r.city?.name ?? '—', sortKey: 'city' },
+        {
+          header: 'Default ASM',
+          cell: (r) => r.salesperson?.name ?? '—',
+          className: 'hidden lg:table-cell',
+          sortKey: 'salesperson',
+        },
         {
           header: 'Phone',
           cell: (r) => r.phone ?? '—',

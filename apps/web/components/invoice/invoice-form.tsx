@@ -12,6 +12,7 @@ import {
   invoiceConflictSchema,
   invoiceDetailSchema,
   invoiceInputSchema,
+  lastRatesSchema,
   nextInvoiceNoSchema,
   partyOptionSchema,
   type ProductOption,
@@ -76,9 +77,18 @@ const subPartyOptionsSchema = z.array(subPartyOptionSchema);
 /**
  * The invoice entry grid (spec §5.2, replaces the Excel "Data Entry" sheet).
  * Totals are previewed live with the shared calc; the API recomputes on save.
+ * `copyFrom` starts a new invoice from an existing one (new number, today's date).
  */
-export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
+export function InvoiceForm({
+  detail,
+  copyFrom,
+}: {
+  detail?: InvoiceDetail;
+  copyFrom?: InvoiceDetail;
+}) {
   const isEdit = detail !== undefined;
+  /** The saved invoice whose (possibly now inactive) masters must stay visible in dropdowns. */
+  const source = detail ?? copyFrom;
   const router = useRouter();
   const queryClient = useQueryClient();
   const { can } = useAuth();
@@ -94,7 +104,11 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
   });
 
   const form = useForm<FormValues>({
-    defaultValues: detail ? withSpareRow(draftFromDetail(detail)) : emptyValues(),
+    defaultValues: detail
+      ? withSpareRow(draftFromDetail(detail))
+      : copyFrom
+        ? copiedValues(copyFrom)
+        : emptyValues(),
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: 'lines' });
   const lines = useWatch({ control: form.control, name: 'lines' });
@@ -111,6 +125,52 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
   const [addingParty, setAddingParty] = useState(false);
   const saveAndNew = useRef(false);
   const gridRef = useRef<HTMLDivElement>(null);
+  /** Party just picked by the user — its only sub-party is filled in once the list loads. */
+  const pickSubPartyFor = useRef<string | null>(null);
+
+  // The party's last Rate 40Kg per product pre-fills new lines (Phase 1 quick wins).
+  const lastRates = useQuery({
+    queryKey: ['invoices', 'last-rates', partyId],
+    queryFn: () => api.get(`/invoices/last-rates?partyId=${partyId}`, lastRatesSchema),
+    enabled: !!partyId,
+    staleTime: 60_000,
+  });
+  const rateMap = useMemo(
+    () => new Map((lastRates.data ?? []).map((r) => [r.productId, r])),
+    [lastRates.data],
+  );
+
+  // Rates arrive after the party is picked: fill any line that has a product but no rate yet.
+  useEffect(() => {
+    if (!lastRates.data) return;
+    form.getValues('lines').forEach((l, i) => {
+      const last = l.productId ? rateMap.get(l.productId) : undefined;
+      if (last && !l.rate40Kg.trim()) {
+        form.setValue(`lines.${i}.rate40Kg`, last.rate40Kg, { shouldDirty: true });
+      }
+    });
+  }, [lastRates.data, rateMap, form]);
+
+  // A party with exactly one sub-party of its own gets it filled in.
+  useEffect(() => {
+    if (!partyId || pickSubPartyFor.current !== partyId || !subParties.data) return;
+    pickSubPartyFor.current = null;
+    const own = subParties.data.filter((s) => s.partyId === partyId);
+    if (own.length === 1 && !form.getValues('subPartyId')) {
+      form.setValue('subPartyId', own[0]!.id, { shouldDirty: true });
+    }
+  }, [partyId, subParties.data, form]);
+
+  /** New product on a line: use the party's last rate unless the user typed their own. */
+  const onProductChange = (i: number, productId: string | null) => {
+    const prev = form.getValues(`lines.${i}`);
+    form.setValue(`lines.${i}.productId`, productId, { shouldDirty: true });
+    const prevAuto = prev.productId ? rateMap.get(prev.productId)?.rate40Kg : undefined;
+    const typedOwn = prev.rate40Kg.trim() !== '' && prev.rate40Kg !== prevAuto;
+    if (typedOwn) return;
+    const next = productId ? rateMap.get(productId)?.rate40Kg : undefined;
+    form.setValue(`lines.${i}.rate40Kg`, next ?? '', { shouldDirty: true });
+  };
 
   // Suggest the next number on a fresh form (editable — spec §4.1).
   useEffect(() => {
@@ -122,7 +182,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
   // Products for lookups: active options plus any (now inactive) product already on the invoice.
   const productMap = useMemo(() => {
     const map = new Map<string, ProductOption>((products.data ?? []).map((p) => [p.id, p]));
-    for (const l of detail?.lines ?? []) {
+    for (const l of source?.lines ?? []) {
       if (!map.has(l.product.id)) {
         map.set(l.product.id, {
           ...l.product,
@@ -133,7 +193,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
       }
     }
     return map;
-  }, [products.data, detail]);
+  }, [products.data, source]);
 
   const productOptions = useMemo(
     () =>
@@ -210,6 +270,10 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
     form.setValue('subPartyId', null, { shouldDirty: true });
     const party = parties.data?.find((p) => p.id === id);
     if (party?.cityId) form.setValue('cityId', party.cityId, { shouldDirty: true });
+    if (party?.salespersonId) {
+      form.setValue('salespersonId', party.salespersonId, { shouldDirty: true });
+    }
+    pickSubPartyFor.current = id;
   };
 
   /** Enter moves to the next cell; from the last cell it adds a row (spec §5.2). */
@@ -259,7 +323,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
             <div className="flex gap-2">
               <Combobox
                 id="partyId"
-                options={toComboboxOptions(parties.data, detail?.party)}
+                options={toComboboxOptions(parties.data, source?.party)}
                 value={partyId}
                 onChange={onPartyChange}
                 placeholder="Select party"
@@ -287,7 +351,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
               render={({ field }) => (
                 <Combobox
                   id="cityId"
-                  options={toComboboxOptions(cities.data, detail?.city)}
+                  options={toComboboxOptions(cities.data, source?.city)}
                   value={field.value}
                   onChange={field.onChange}
                   noneLabel="—"
@@ -303,7 +367,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
               render={({ field }) => (
                 <Combobox
                   id="subPartyId"
-                  options={toComboboxOptions(subParties.data, detail?.subParty)}
+                  options={toComboboxOptions(subParties.data, source?.subParty)}
                   value={field.value}
                   onChange={field.onChange}
                   noneLabel="—"
@@ -319,7 +383,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
               render={({ field }) => (
                 <Combobox
                   id="salespersonId"
-                  options={toComboboxOptions(salespersons.data, detail?.salesperson)}
+                  options={toComboboxOptions(salespersons.data, source?.salesperson)}
                   value={field.value}
                   onChange={field.onChange}
                   noneLabel="—"
@@ -378,6 +442,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                   const calc = draft.lines[i];
                   const product = line?.productId ? productMap.get(line.productId) : undefined;
                   const dupe = !!line?.productId && dupes.has(line.productId);
+                  const last = line?.productId ? rateMap.get(line.productId) : undefined;
                   return (
                     <tr
                       key={field.id}
@@ -396,7 +461,7 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                             <Combobox
                               options={productOptions}
                               value={f.value}
-                              onChange={f.onChange}
+                              onChange={(v) => onProductChange(i, v)}
                               placeholder="Select product"
                               noneLabel="(clear)"
                               className={cn('h-8', dupe && 'border-amber-500')}
@@ -429,6 +494,11 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
                           data-cell=""
                           inputMode="decimal"
                           className="h-8 text-right tabular-nums"
+                          title={
+                            last
+                              ? `Last rate for this party: ${formatNumber(last.rate40Kg, 2)} (invoice #${last.invoiceNo}, ${last.invoiceDate.split('-').reverse().join('-')})`
+                              : undefined
+                          }
                           aria-invalid={!!err(`lines.${i}.rate40Kg`)}
                           {...form.register(`lines.${i}.rate40Kg`)}
                         />
@@ -593,6 +663,11 @@ export function InvoiceForm({ detail }: { detail?: InvoiceDetail }) {
 }
 
 /** Saved invoices open with one empty row ready for typing. */
+/** A new invoice from an old one: same party, ASM and lines; new number, today, no remarks. */
+function copiedValues(from: InvoiceDetail): FormValues {
+  return { ...draftFromDetail(from), invoiceNo: '', invoiceDate: businessToday(), remarks: '' };
+}
+
 function withSpareRow(values: ReturnType<typeof draftFromDetail>): FormValues {
   return { ...values, lines: [...values.lines, blankLine()] };
 }

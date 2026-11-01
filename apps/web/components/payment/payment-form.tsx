@@ -39,9 +39,28 @@ interface FormValues {
   remarks: string;
 }
 
-const emptyValues = (keep?: Pick<FormValues, 'paymentDate' | 'bankId'>): FormValues => ({
+/** The bank last used on this device pre-fills the next payment (Phase 1 quick wins). */
+const LAST_BANK_KEY = 'sms:lastBankId';
+function readLastBank(): string | null {
+  try {
+    return localStorage.getItem(LAST_BANK_KEY);
+  } catch {
+    return null;
+  }
+}
+function rememberBank(id: string | null) {
+  try {
+    if (id) localStorage.setItem(LAST_BANK_KEY, id);
+  } catch {
+    // storage blocked (private window) — just don't remember
+  }
+}
+
+const emptyValues = (
+  keep?: Partial<Pick<FormValues, 'paymentDate' | 'bankId' | 'partyId'>>,
+): FormValues => ({
   paymentDate: keep?.paymentDate ?? businessToday(),
-  partyId: null,
+  partyId: keep?.partyId ?? null,
   subPartyId: null,
   slipNo: '',
   bankId: keep?.bankId ?? null,
@@ -61,15 +80,29 @@ const fromRow = (p: PaymentRow): FormValues => ({
 
 const AMOUNT_RE = /^\d+(\.\d{1,2})?$/;
 
-/** Payment entry (spec §5.4, replaces the Excel "Payments" sheet). */
-export function PaymentForm({ payment }: { payment?: PaymentRow }) {
+/**
+ * Payment entry (spec §5.4, replaces the Excel "Payments" sheet).
+ * With `onDone` it runs inside a dialog (e.g. "Receive payment" on Recovery): `partyId`
+ * is pre-selected, and saving or cancelling calls `onDone` instead of leaving the page.
+ */
+export function PaymentForm({
+  payment,
+  partyId: initialPartyId,
+  onDone,
+}: {
+  payment?: PaymentRow;
+  partyId?: string;
+  onDone?: () => void;
+}) {
   const isEdit = payment !== undefined;
   const router = useRouter();
   const queryClient = useQueryClient();
   const parties = useMasterOptions('parties', z.array(partyOptionSchema));
   const banks = useMasterOptions('banks');
 
-  const form = useForm<FormValues>({ defaultValues: payment ? fromRow(payment) : emptyValues() });
+  const form = useForm<FormValues>({
+    defaultValues: payment ? fromRow(payment) : emptyValues({ partyId: initialPartyId }),
+  });
   const [partyId, amount] = useWatch({ control: form.control, name: ['partyId', 'amount'] });
   const subParties = useMasterOptions(
     'sub-parties',
@@ -78,6 +111,28 @@ export function PaymentForm({ payment }: { payment?: PaymentRow }) {
   );
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const saveAndNew = useRef(false);
+  /** Party just chosen — its only sub-party is filled in once the list loads. */
+  const pickSubPartyFor = useRef<string | null>(isEdit ? null : (initialPartyId ?? null));
+
+  useEffect(() => {
+    if (!partyId || pickSubPartyFor.current !== partyId || !subParties.data) return;
+    pickSubPartyFor.current = null;
+    const own = subParties.data.filter((s) => s.partyId === partyId);
+    if (own.length === 1 && !form.getValues('subPartyId')) {
+      form.setValue('subPartyId', own[0]!.id, { shouldDirty: true });
+    }
+  }, [partyId, subParties.data, form]);
+
+  // A new payment starts on the bank last used here, if it is still active.
+  const bankDefaulted = useRef(isEdit);
+  useEffect(() => {
+    if (bankDefaulted.current || !banks.data) return;
+    bankDefaulted.current = true;
+    const last = readLastBank();
+    if (!form.getValues('bankId') && last && banks.data.some((b) => b.id === last)) {
+      form.setValue('bankId', last);
+    }
+  }, [banks.data, form]);
 
   const position = useQuery({
     queryKey: ['recovery', 'position', partyId],
@@ -102,7 +157,11 @@ export function PaymentForm({ payment }: { payment?: PaymentRow }) {
       toast.success(`Payment of ${formatPKR2(saved.amount)} from ${saved.party.name} saved.`);
       void queryClient.invalidateQueries({ queryKey: ['payments'] });
       void queryClient.invalidateQueries({ queryKey: ['recovery'] });
-      if (saveAndNew.current && !isEdit) {
+      rememberBank(saved.bank?.id ?? null);
+      if (onDone) {
+        form.reset(form.getValues());
+        onDone();
+      } else if (saveAndNew.current && !isEdit) {
         const { paymentDate, bankId } = form.getValues();
         form.reset(emptyValues({ paymentDate, bankId })); // keep date + bank for the next slip
         setErrors(new Map());
@@ -136,6 +195,7 @@ export function PaymentForm({ payment }: { payment?: PaymentRow }) {
   const onPartyChange = (id: string | null) => {
     form.setValue('partyId', id, { shouldDirty: true });
     form.setValue('subPartyId', null, { shouldDirty: true });
+    pickSubPartyFor.current = id;
   };
 
   // "After this payment" (Payments G8). When editing, the saved amount is already in
@@ -239,7 +299,7 @@ export function PaymentForm({ payment }: { payment?: PaymentRow }) {
             >
               {save.isPending ? 'Saving…' : isEdit ? 'Save changes' : 'Save'}
             </Button>
-            {!isEdit && (
+            {!isEdit && !onDone && (
               <Button
                 type="button"
                 variant="secondary"
@@ -249,7 +309,11 @@ export function PaymentForm({ payment }: { payment?: PaymentRow }) {
                 Save & new
               </Button>
             )}
-            <Button type="button" variant="outline" onClick={() => router.push('/payments')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => (onDone ? onDone() : router.push('/payments'))}
+            >
               Cancel
             </Button>
           </div>

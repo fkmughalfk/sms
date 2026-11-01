@@ -18,6 +18,7 @@ export function PartyDialog({
   onSaved?: (row: PartyRow) => void;
 }) {
   const cities = useMasterOptions('cities');
+  const salespersons = useMasterOptions('salespersons');
   return (
     <EntityDialog
       row={row}
@@ -31,6 +32,7 @@ export function PartyDialog({
       defaults={(r) => ({
         name: r?.name ?? '',
         cityId: r?.cityId ?? null,
+        salespersonId: r?.salespersonId ?? null,
         phone: r?.phone ?? '',
         openingBalance: r?.openingBalance ?? '0',
       })}
@@ -45,6 +47,14 @@ export function PartyDialog({
             options={toComboboxOptions(cities.data, row?.city)}
             noneLabel="No default city"
             placeholder="No default city"
+          />
+          <ComboboxField
+            form={form}
+            name="salespersonId"
+            label="Default ASM / Salesperson"
+            options={toComboboxOptions(salespersons.data, row?.salesperson)}
+            noneLabel="No default ASM"
+            placeholder="No default ASM"
           />
           <div className="grid grid-cols-2 gap-3">
             <TextField form={form} name="phone" label="Phone" inputMode="tel" />

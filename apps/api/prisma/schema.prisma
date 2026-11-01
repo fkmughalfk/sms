@@ -87,18 +87,20 @@ model City {
 }
 
 model Party {
-  id             String     @id @default(cuid())
-  name           String     @unique @db.Citext
+  id             String       @id @default(cuid())
+  name           String       @unique @db.Citext
   cityId         String?
-  city           City?      @relation(fields: [cityId], references: [id])
+  city           City?        @relation(fields: [cityId], references: [id])
+  salespersonId  String? // default ASM, pre-fills new invoices
+  salesperson    Salesperson? @relation(fields: [salespersonId], references: [id])
   phone          String?
-  openingBalance Decimal    @default(0) @db.Decimal(18, 2)
-  isActive       Boolean    @default(true)
+  openingBalance Decimal      @default(0) @db.Decimal(18, 2)
+  isActive       Boolean      @default(true)
   subParties     SubParty[]
   invoices       Invoice[]
   payments       Payment[]
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model SubParty {
@@ -120,6 +122,7 @@ model Salesperson {
   isActive Boolean   @default(true)
   invoices Invoice[]
   users    User[]
+  parties  Party[]
 }
 
 model Bank {

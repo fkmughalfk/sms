@@ -16,7 +16,7 @@ import {
   productOptionSchema,
 } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Download, Eye, FileText, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
+import { Copy, Download, Eye, FileText, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -421,6 +421,12 @@ export default function InvoicesPage() {
                           label: 'Print',
                           icon: Printer,
                           onSelect: () => router.push(`/invoices/${inv.id}/print`),
+                        },
+                        {
+                          label: 'Copy to new invoice',
+                          icon: Copy,
+                          onSelect: () => router.push(`/invoices/new?copy=${inv.id}`),
+                          show: can('invoice.create'),
                         },
                         {
                           label: 'Delete',

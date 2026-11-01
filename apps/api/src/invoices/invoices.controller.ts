@@ -19,6 +19,8 @@ import {
   invoiceInputSchema,
   type InvoiceListQuery,
   invoiceListQuerySchema,
+  type LastRatesQuery,
+  lastRatesQuerySchema,
   type BulkDeleteInput,
   bulkDeleteSchema,
 } from '@sms/shared';
@@ -51,6 +53,14 @@ export class InvoicesController {
     @Query(new ZodValidationPipe(invoiceListQuerySchema)) query: InvoiceListQuery,
   ) {
     return this.invoices.lines(user, query);
+  }
+
+  @Get('last-rates')
+  lastRates(
+    @CurrentUser() user: AuthUser,
+    @Query(new ZodValidationPipe(lastRatesQuerySchema)) query: LastRatesQuery,
+  ) {
+    return this.invoices.lastRates(user, query.partyId);
   }
 
   @Get('next-number')

@@ -240,6 +240,18 @@ export type InvoicePreview = z.infer<typeof invoicePreviewSchema>;
 
 export const nextInvoiceNoSchema = z.object({ invoiceNo: z.number() });
 
+/** `GET /invoices/last-rates?partyId=` — the party's latest Rate 40Kg per product (pre-fills new lines). */
+export const lastRatesQuerySchema = z.object({ partyId: z.string().trim().min(1) });
+export type LastRatesQuery = z.infer<typeof lastRatesQuerySchema>;
+export const lastRateSchema = z.object({
+  productId: z.string(),
+  rate40Kg: z.string(),
+  invoiceNo: z.number(),
+  invoiceDate: z.string(),
+});
+export type LastRate = z.infer<typeof lastRateSchema>;
+export const lastRatesSchema = z.array(lastRateSchema);
+
 /** 409 body when the invoice number is taken, so the UI can offer "open it for edit?". */
 export const invoiceConflictSchema = z.object({
   statusCode: z.literal(409),

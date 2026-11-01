@@ -49,6 +49,8 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 const partyBase = z.object({
   name: nameSchema(),
   cityId: optionalIdSchema,
+  /** Default ASM — pre-fills new invoices. */
+  salespersonId: optionalIdSchema,
   phone: phoneSchema,
   openingBalance: decimalSchema({ maxDecimals: 2, message: 'Enter a valid opening balance.' }),
 });
@@ -153,14 +155,19 @@ export const partyRowSchema = z.object({
   name: z.string(),
   cityId: z.string().nullable(),
   city: ref.nullable(),
+  salespersonId: z.string().nullable(),
+  salesperson: ref.nullable(),
   phone: z.string().nullable(),
   openingBalance: z.string(),
   isActive: z.boolean(),
 });
 export type PartyRow = z.infer<typeof partyRowSchema>;
 
-/** Party dropdown row; `cityId` pre-fills the invoice city (spec §5.2). */
-export const partyOptionSchema = ref.extend({ cityId: z.string().nullable() });
+/** Party dropdown row; `cityId` and `salespersonId` pre-fill a new invoice (spec §5.2). */
+export const partyOptionSchema = ref.extend({
+  cityId: z.string().nullable(),
+  salespersonId: z.string().nullable(),
+});
 export type PartyOption = z.infer<typeof partyOptionSchema>;
 
 export const subPartyRowSchema = z.object({

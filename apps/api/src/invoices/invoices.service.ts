@@ -18,6 +18,7 @@ import {
   type InvoiceListQuery,
   type InvoiceLineInput,
   type InvoicePreview,
+  type LastRate,
   type LineResult,
   packWeightKg,
   resolveCommissionRate,
@@ -230,6 +231,29 @@ export class InvoicesService {
       canEdit: canEditInvoice(user, inv, settings.userEditWindowHours),
       canDelete: hasPermission(user.role, 'invoice.delete'),
     };
+  }
+
+  /**
+   * The party's most recent Rate 40Kg for each product it has bought, so a new line can
+   * pre-fill the rate. Latest = newest invoice date, then highest invoice number.
+   */
+  async lastRates(user: AuthUser, partyId: string): Promise<LastRate[]> {
+    const lines = await this.prisma.invoiceLine.findMany({
+      where: { invoice: { partyId, deletedAt: null, ...invoiceScope(user) } },
+      orderBy: [{ invoice: { invoiceDate: 'desc' } }, { invoice: { invoiceNo: 'desc' } }],
+      distinct: ['productId'],
+      select: {
+        productId: true,
+        rate40Kg: true,
+        invoice: { select: { invoiceNo: true, invoiceDate: true } },
+      },
+    });
+    return lines.map((l) => ({
+      productId: l.productId,
+      rate40Kg: l.rate40Kg.toString(),
+      invoiceNo: l.invoice.invoiceNo,
+      invoiceDate: fromDbDate(l.invoice.invoiceDate),
+    }));
   }
 
   async nextNumber(): Promise<{ invoiceNo: number }> {

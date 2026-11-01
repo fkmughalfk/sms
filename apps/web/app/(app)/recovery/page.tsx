@@ -28,6 +28,7 @@ import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
 import { FilterBar } from '@/components/data-table/filter-bar';
 import { RowActions } from '@/components/data-table/row-actions';
+import { ReceivePaymentDialog } from '@/components/payment/receive-payment-dialog';
 
 /** Share bar for "% Recovered" (Payments J20:N…). */
 function RecoveryBar({ rate }: { rate: string }) {
@@ -52,6 +53,7 @@ export default function RecoveryPage() {
   const [search, setSearch] = useState('');
   const [cityId, setCityId] = useState<string | null>(null);
   const [outstandingOnly, setOutstandingOnly] = useState(true);
+  const [receiving, setReceiving] = useState<{ id: string; name: string } | null>(null);
   const deferredSearch = useDeferredValue(search.trim());
   const cities = useMasterOptions('cities');
 
@@ -226,23 +228,37 @@ export default function RecoveryPage() {
                   <TableCell className="hidden text-right tabular-nums lg:table-cell">
                     {r.lastPaymentDate?.split('-').reverse().join('-') ?? '—'}
                   </TableCell>
-                  <TableCell>
-                    <RowActions
-                      label={r.party.name}
-                      actions={[
-                        {
-                          label: 'View ledger',
-                          icon: BookOpen,
-                          onSelect: () => router.push(`/recovery/${r.party.id}`),
-                        },
-                        {
-                          label: 'Record payment',
-                          icon: HandCoins,
-                          onSelect: () => router.push('/payments/new'),
-                          show: can('payment.create'),
-                        },
-                      ]}
-                    />
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                      {can('payment.create') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 gap-1 border-emerald-300 px-2 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/40 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                          onClick={() => setReceiving(r.party)}
+                          aria-label={`Receive payment from ${r.party.name}`}
+                        >
+                          <HandCoins className="size-3.5" />
+                          <span className="hidden xl:inline">Receive</span>
+                        </Button>
+                      )}
+                      <RowActions
+                        label={r.party.name}
+                        actions={[
+                          {
+                            label: 'View ledger',
+                            icon: BookOpen,
+                            onSelect: () => router.push(`/recovery/${r.party.id}`),
+                          },
+                          {
+                            label: 'Record payment',
+                            icon: HandCoins,
+                            onSelect: () => setReceiving(r.party),
+                            show: can('payment.create'),
+                          },
+                        ]}
+                      />
+                    </div>
                   </TableCell>
                 </TableRow>
               );
@@ -283,6 +299,8 @@ export default function RecoveryPage() {
           noun="parties"
         />
       )}
+
+      <ReceivePaymentDialog party={receiving} onOpenChange={(o) => !o && setReceiving(null)} />
     </div>
   );
 }

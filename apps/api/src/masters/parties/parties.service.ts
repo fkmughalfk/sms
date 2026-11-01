@@ -10,6 +10,8 @@ const select = {
   name: true,
   cityId: true,
   city: { select: { id: true, name: true } },
+  salespersonId: true,
+  salesperson: { select: { id: true, name: true } },
   phone: true,
   openingBalance: true,
   isActive: true,
@@ -24,6 +26,7 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
   protected override readonly sortColumns = {
     ...byFields('phone', 'openingBalance'),
     city: byRelationName('city'),
+    salesperson: byRelationName('salesperson'),
   };
 
   protected delegate(db: Db) {
@@ -46,13 +49,20 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
       });
       assertActiveRef(city, 'Select an active city.');
     }
+    if (input.salespersonId && input.salespersonId !== existing?.salespersonId) {
+      const salesperson = await db.salesperson.findUnique({
+        where: { id: input.salespersonId },
+        select: { isActive: true },
+      });
+      assertActiveRef(salesperson, 'Select an active salesperson.');
+    }
   }
 
-  /** Dropdown rows; `cityId` pre-fills the invoice city (spec §5.2). */
+  /** Dropdown rows; `cityId` and `salespersonId` pre-fill a new invoice (spec §5.2). */
   partyOptions(): Promise<PartyOption[]> {
     return this.prisma.party.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, cityId: true },
+      select: { id: true, name: true, cityId: true, salespersonId: true },
       orderBy: { name: 'asc' },
     });
   }

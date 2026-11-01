@@ -106,6 +106,7 @@ describe('masters', () => {
     expect(partySchema.parse({ name: 'Pak Rice Traders', cityId: '', phone: '  ' })).toEqual({
       name: 'Pak Rice Traders',
       cityId: null,
+      salespersonId: null,
       phone: null,
       openingBalance: '0',
     });

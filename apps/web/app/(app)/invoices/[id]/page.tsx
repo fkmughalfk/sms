@@ -2,7 +2,7 @@
 
 import { BUSINESS_TIMEZONE } from '@sms/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Pencil, Plus, Printer, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, Copy, Pencil, Plus, Printer, Trash2, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -73,6 +73,13 @@ export default function InvoicePage() {
               <Printer /> Print
             </Link>
           </Button>
+          {can('invoice.create') && (
+            <Button asChild variant="outline">
+              <Link href={`/invoices/new?copy=${invoice.id}`}>
+                <Copy /> Copy
+              </Link>
+            </Button>
+          )}
           {invoice.canDelete && (
             <Button variant="outline" onClick={() => setConfirmDelete(true)}>
               <Trash2 /> Delete

@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { useSettings } from '@/lib/use-invoice';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
+import { ReceivePaymentDialog } from '@/components/payment/receive-payment-dialog';
 
 const toDisplayDate = (d: string) => d.split('-').reverse().join('-');
 
@@ -33,6 +34,7 @@ export default function PartyLedgerPage() {
   const settings = useSettings();
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [receiving, setReceiving] = useState(false);
 
   const params = new URLSearchParams();
   if (from) params.set('from', from);
@@ -79,10 +81,8 @@ export default function PartyLedgerPage() {
             <Printer /> Print
           </Button>
           {can('payment.create') && (
-            <Button asChild>
-              <Link href="/payments/new">
-                <Plus /> Record payment
-              </Link>
+            <Button onClick={() => setReceiving(true)}>
+              <Plus /> Record payment
             </Button>
           )}
         </div>
@@ -175,6 +175,11 @@ export default function PartyLedgerPage() {
           Dr = the party owes you · Cr = paid in advance.
         </p>
       </article>
+
+      <ReceivePaymentDialog
+        party={receiving ? data.party : null}
+        onOpenChange={(o) => !o && setReceiving(false)}
+      />
     </div>
   );
 }

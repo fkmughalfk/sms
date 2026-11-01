@@ -411,8 +411,8 @@ model AuditLog {
 | Invoice Date | D5 | Required. Default today. |
 | Party (Name) | D6 (`lstParty`) | Required. Searchable combobox. "+ Add party" inline for ADMIN+. |
 | City | D7 (`lstCity`) | Pre-filled from party's default city, editable. |
-| Sub Party | D8 (`lstSubParty`) | Optional. Filter to the selected party's sub-parties + unassigned ones. |
-| ASM / Salesperson | D9 (`lstASM`) | Optional (recommend required). |
+| Sub Party | D8 (`lstSubParty`) | Optional. Filter to the selected party's sub-parties + unassigned ones. If the party has exactly one sub-party of its own, it is filled in. |
+| ASM / Salesperson | D9 (`lstASM`) | Optional (recommend required). Pre-filled from the party's default ASM, editable. |
 | Remarks | — | Optional, new. |
 
 **Line items** (unlimited, add/remove rows, keyboard-friendly: Enter moves to next cell)
@@ -428,6 +428,11 @@ model AuditLog {
 | Amount | calculated | §6 |
 | Commission | calculated | §6 |
 | Weight (KG) | calculated | §6 |
+
+**Entry shortcuts** (Phase 1 quick wins)
+- Choosing a product fills **Rate 40Kg** with the party's last rate for that product (newest invoice date, then highest number); the rate box shows where it came from on hover. A rate the user typed is never overwritten.
+- New invoices start with one row; Enter on the last Rate adds a row and moves to its product.
+- **Copy** (invoice view and list menu) opens `/invoices/new?copy=<id>`: same party, city, sub party, ASM and lines; new number, today's date, no remarks.
 
 **Invoice summary panel** (live, as in Excel I5:I7): Amount, Commission, Total Bags, plus Total Weight (KG / Tons).
 
@@ -453,7 +458,7 @@ model AuditLog {
 
 ### 5.4 Payments / recovery (replaces **Payments** sheet + **Sheet1**)
 
-**New payment form**: Date*, Party*, Sub Party, Slip No., Bank (from Banks list, includes "Cash"), Amount* (> 0), Remarks.
+**New payment form**: Date*, Party*, Sub Party, Slip No., Bank (from Banks list, includes "Cash"), Amount* (> 0), Remarks. The bank last used on the device pre-fills the next payment; a party's only sub-party is filled in. **Receive payment** on each Recovery row and on the party ledger opens this form in a dialog with the party already chosen.
 
 **Live "Party Position" panel** (Payments F5:G8), shown as soon as a party is chosen:
 - **Invoiced** = Σ invoice totalAmount for the party (+ openingBalance)
@@ -500,7 +505,7 @@ New, nice-to-have: sales trend (daily/monthly line chart), top 10 parties, sales
 CRUD screens (ADMIN+; USER read-only) with search, active/inactive toggle, and CSV/Excel import:
 - **Categories**: name, commission rate (blank = default 0.35%).
 - **Products**: # (sku), name, unit weight (KG), pack (pcs), pack weight (calculated, read-only), category, optional commission override, active.
-- **Parties**: name, default city, phone, opening balance, active.
+- **Parties**: name, default city, default ASM, phone, opening balance, active. The default city and ASM pre-fill new invoices.
 - **Sub-parties**: name, optional parent party.
 - **Cities**, **Salespersons (ASM)**, **Banks**.
 
@@ -582,7 +587,7 @@ Write this as a unit test in `packages/shared/src/calc/__tests__/invoice.test.ts
 | users | `GET/POST /users`, `GET/PATCH /users/:id`, `POST /users/:id/reset-password`, `PATCH /users/:id/status` |
 | settings | `GET /settings`, `PATCH /settings` |
 | categories, products, parties, sub-parties, cities, salespersons, banks | `GET /x` (search, active filter), `GET /x/:id`, `POST /x`, `PATCH /x/:id`, `PATCH /x/:id/status`, `GET /x/options` (lightweight dropdown list) |
-| invoices | `GET /invoices`, `GET /invoices/lines`, `GET /invoices/next-number`, `GET /invoices/:id`, `POST /invoices`, `PUT /invoices/:id`, `DELETE /invoices/:id`, `POST /invoices/preview` (returns calculated lines without saving), `GET /invoices/export` |
+| invoices | `GET /invoices`, `GET /invoices/lines`, `GET /invoices/next-number`, `GET /invoices/last-rates?partyId=` (the party's newest Rate 40Kg per product, within the user's data scope), `GET /invoices/:id`, `POST /invoices`, `PUT /invoices/:id`, `DELETE /invoices/:id`, `POST /invoices/preview` (returns calculated lines without saving), `GET /invoices/export` |
 | payments | `GET /payments`, `GET /payments/:id`, `POST /payments`, `PATCH /payments/:id`, `DELETE /payments/:id`, `GET /payments/export` |
 | recovery | `GET /recovery/parties` (summary), `GET /recovery/parties/:id/position`, `GET /recovery/parties/:id/ledger` |
 | reports | `GET /reports/dashboard?from&to` (KPIs + target + recovery totals in one call), `GET /reports/by-category`, `GET /reports/by-salesperson`, `GET /reports/by-product`, `GET /reports/by-party`, `GET /reports/by-city`, `GET /reports/trend?granularity=day|month` |

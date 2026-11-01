@@ -313,7 +313,39 @@ describe('masters (e2e)', () => {
         id: res.body.id,
         name: 'Pak Rice Traders',
         cityId: city.id,
+        salespersonId: null,
       });
+    });
+
+    it('party: default ASM is returned, must be active, and blocks deleting that ASM', async () => {
+      const asm = await create('salespersons', { name: 'Default ASM' });
+      const res = await post('ADMIN', 'parties', {
+        name: 'ASM Party',
+        salespersonId: asm.id,
+      }).expect(201);
+      expect(res.body).toMatchObject({
+        salespersonId: asm.id,
+        salesperson: { id: asm.id, name: 'Default ASM' },
+      });
+      const options = await as.USER.get('/api/v1/parties/options').expect(200);
+      expect(options.body).toContainEqual({
+        id: res.body.id,
+        name: 'ASM Party',
+        cityId: null,
+        salespersonId: asm.id,
+      });
+
+      const del = await as.ADMIN.delete(`/api/v1/salespersons/${asm.id}`).expect(409);
+      expect(del.body.message).toContain('1 party');
+
+      const idle = await create('salespersons', { name: 'Idle ASM' });
+      await as.ADMIN.patch(`/api/v1/salespersons/${idle.id}/status`)
+        .send({ isActive: false })
+        .expect(200);
+      const bad = await as.ADMIN.patch(`/api/v1/parties/${res.body.id}`)
+        .send({ salespersonId: idle.id })
+        .expect(400);
+      expect(bad.body.message).toContain('active salesperson');
     });
 
     it('sub-party names are unique per party and among unassigned ones', async () => {

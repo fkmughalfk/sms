@@ -7,6 +7,7 @@ import {
   type OrderStatus,
   orderDetailSchema,
   orderListSchema,
+  pendingReportSchema,
   type RateListLine,
 } from '@sms/shared';
 import { useQuery } from '@tanstack/react-query';
@@ -87,3 +88,16 @@ const dateFmt = new Intl.DateTimeFormat('en-GB', {
 });
 /** `2026-11-04` → "04 Nov 2026". */
 export const formatOrderDate = (d: string) => dateFmt.format(new Date(`${d}T00:00:00Z`));
+
+export function usePendingReport(query: string) {
+  return useQuery({
+    queryKey: [...ORDERS_KEY, 'pending-report', query],
+    queryFn: () => api.get(`/orders/pending-report?${query}`, pendingReportSchema),
+  });
+}
+
+/** Pack as sold: "25 kg", "4 × 10 kg" (an outer), "6 × 1 kg" (a ghee carton). */
+export function packText(packWeightKg: string, packPcs: number): string {
+  if (packPcs <= 1) return `${dec(packWeightKg).toString()} kg`;
+  return `${packPcs} × ${dec(packWeightKg).div(packPcs).toString()} kg`;
+}

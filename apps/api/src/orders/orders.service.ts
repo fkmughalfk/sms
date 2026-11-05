@@ -72,6 +72,7 @@ const detailSelect = {
       ratePerPack: true,
       amount: true,
       weightKg: true,
+      openingDispatched: true,
     },
   },
   discounts: { select: { category: ref, amount: true } },
@@ -92,6 +93,7 @@ interface BookedLine {
   ratePerPack: string;
   amount: string;
   weightKg: string;
+  openingDispatched: number;
 }
 
 const lineKey = (productId: string, cropYear: string | null) => `${productId}|${cropYear ?? ''}`;
@@ -218,8 +220,8 @@ export class OrdersService {
         ratePerPack: l.ratePerPack.toString(),
         amount: l.amount.toString(),
         weightKg: l.weightKg.toString(),
-        // Invoices reduce this from phase O4.
-        pendingPacks: l.qtyPacks,
+        dispatchedPacks: l.openingDispatched,
+        pendingPacks: Math.max(0, l.qtyPacks - l.openingDispatched),
       })),
       discounts: o.discounts
         .map((d) => ({
@@ -487,6 +489,13 @@ export class OrdersService {
       let bookedListRate: string | null;
       let weight: string;
       let pcs: number;
+      if (kept && l.qtyPacks < kept.dispatchedPacks) {
+        return fail(
+          i,
+          'qtyPacks',
+          `${kept.dispatchedPacks} of ${label} are already dispatched; the order can't be less.`,
+        );
+      }
       if (kept) {
         // Already booked: keep its rate and pack snapshot (the office may re-price).
         basis = kept.basis;
@@ -531,8 +540,17 @@ export class OrdersService {
         ratePerPack: calc.ratePerPack.toString(),
         amount: calc.amount.toString(),
         weightKg: calc.weightKg.toString(),
+        openingDispatched: kept?.dispatchedPacks ?? 0,
       };
     });
+    const wanted = new Set(input.lines.map((l) => lineKey(l.productId, l.cropYear)));
+    for (const l of existing?.lines ?? []) {
+      if (l.dispatchedPacks > 0 && !wanted.has(lineKey(l.product.id, l.cropYear))) {
+        throw new BadRequestException(
+          `${l.product.name} has ${l.dispatchedPacks} already dispatched, so it can't be removed from the order.`,
+        );
+      }
+    }
     return { lines, rateListId: usedList ? (current?.id ?? null) : null };
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { formatPKR, ORDER_STATUSES, type OrderStatus } from '@sms/shared';
-import { ChevronRight, ClipboardList, Plus } from 'lucide-react';
+import { ChevronRight, ClipboardList, ListChecks, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { PageHeading } from '@/components/form-section';
@@ -37,6 +37,11 @@ export default function OrdersPage() {
           </PageHeading>
           <p className="text-sm text-muted-foreground">Booked at the rate list in force.</p>
         </div>
+        <Button asChild variant="outline">
+          <Link href="/orders/pending">
+            <ListChecks /> Pending report
+          </Link>
+        </Button>
         {can('order.create') && (
           <Button asChild>
             <Link href="/orders/new">

@@ -293,6 +293,7 @@ model Order {
   rateList      RateList?       @relation(fields: [rateListId], references: [id])
   remarks       String?
   statusReason  String? // why it was rejected / cancelled / closed
+  isOpening     Boolean         @default(false) // loaded at go-live from the old pending report
   reviewedById  String?
   reviewedAt    DateTime?
   totalPacks    Int             @default(0)
@@ -312,22 +313,24 @@ model Order {
 }
 
 model OrderLine {
-  id           String    @id @default(cuid())
-  orderId      String
-  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  lineNo       Int
-  productId    String
-  product      Product   @relation(fields: [productId], references: [id])
-  cropYear     String    @default("")
-  basis        RateBasis
-  listRate     Decimal?  @db.Decimal(14, 2) // the rate list's rate when booked
-  rate         Decimal   @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
-  packWeightKg Decimal   @db.Decimal(10, 3) // snapshot
-  packPcs      Int // snapshot (ghee: tins per carton)
-  qtyPacks     Int
-  ratePerPack  Decimal   @db.Decimal(14, 4)
-  amount       Decimal   @db.Decimal(18, 2)
-  weightKg     Decimal   @db.Decimal(14, 3)
+  id                String    @id @default(cuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineNo            Int
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id])
+  cropYear          String    @default("")
+  basis             RateBasis
+  listRate          Decimal?  @db.Decimal(14, 2) // the rate list's rate when booked
+  rate              Decimal   @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
+  packWeightKg      Decimal   @db.Decimal(10, 3) // snapshot
+  packPcs           Int // snapshot (ghee: tins per carton)
+  qtyPacks          Int
+  ratePerPack       Decimal   @db.Decimal(14, 4)
+  amount            Decimal   @db.Decimal(18, 2)
+  weightKg          Decimal   @db.Decimal(14, 3)
+  /// Bags already dispatched before go-live (opening import); invoices add to it from O4.
+  openingDispatched Int       @default(0)
 
   @@unique([orderId, lineNo])
   @@index([productId])
@@ -345,4 +348,27 @@ model OrderDiscount {
   amount     Decimal  @db.Decimal(12, 2)
 
   @@unique([orderId, categoryId])
+}
+
+// ── Names from other software (opening import now, invoice PDFs from O4) ──
+
+enum AliasKind {
+  PRODUCT
+  PARTY
+  SALESPERSON
+}
+
+/**
+ * "1121 STEAM" (25 kg) → Steam Platinum 25 kg; "FARHAN SB" → Farhan Khalid. Decided once, remembered.
+ */
+model NameAlias {
+  id          String    @id @default(cuid())
+  kind        AliasKind
+  text        String // normalised: trimmed, single spaces, upper case
+  packKg      String    @default("") // products only: the pack size the name was seen with
+  targetId    String
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([kind, text, packKg])
 }

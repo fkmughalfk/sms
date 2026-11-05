@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcLine, calcOrderLine, calcOrderTotals, discountUnit } from '../index';
+import { calcLine, calcOrderLine, calcOrderTotals, discountUnit, pendingLine } from '../index';
 
 describe('calcOrderLine', () => {
   it('per 40 kg matches the invoice calculation, half rupee down (Daal Moong 30 × 25 kg @ 10,250)', () => {
@@ -81,4 +81,50 @@ describe('discountUnit', () => {
     ['Desi Ghee', 'PER_KG'],
     ['Spices', 'PER_KG'],
   ])('%s → %s', (c, u) => expect(discountUnit(c)).toBe(u));
+});
+
+describe('pendingLine (pending orders report 04-11-2026)', () => {
+  it('Shalimar 3092: 6,000 bags × 25 kg @ 13,500, 3,368 dispatched → 2,632 / 65,800 kg / 22,207,500', () => {
+    const p = pendingLine({
+      basis: 'PER_40KG',
+      rate: '13500',
+      packWeightKg: '25',
+      packPcs: 1,
+      qtyPacks: 6000,
+      dispatchedPacks: 3368,
+    });
+    expect([p.pendingPacks, p.pendingWeightKg.toString(), p.pendingAmount.toString()]).toEqual([
+      2632,
+      '65800',
+      '22207500',
+    ]);
+  });
+
+  it('ghee, 10 cartons of 6 × 1 kg @ 2,550 a tin, none dispatched → 153,000', () => {
+    const p = pendingLine({
+      basis: 'PER_UNIT',
+      rate: '2550',
+      packWeightKg: '6',
+      packPcs: 6,
+      qtyPacks: 10,
+      dispatchedPacks: 0,
+    });
+    expect([p.pendingPacks, p.pendingWeightKg.toString(), p.pendingAmount.toString()]).toEqual([
+      10,
+      '60',
+      '153000',
+    ]);
+  });
+
+  it('never negative, even if more was dispatched than ordered', () => {
+    const p = pendingLine({
+      basis: 'PER_40KG',
+      rate: '9600',
+      packWeightKg: '25',
+      packPcs: 1,
+      qtyPacks: 10,
+      dispatchedPacks: 12,
+    });
+    expect([p.pendingPacks, p.pendingAmount.toString()]).toEqual([0, '0']);
+  });
 });

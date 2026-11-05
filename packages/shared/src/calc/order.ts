@@ -58,3 +58,21 @@ export type DiscountUnit = 'PER_40KG' | 'PER_KG';
 export function discountUnit(categoryName: string): DiscountUnit {
   return defaultRateBasis(categoryName) === 'PER_40KG' ? 'PER_40KG' : 'PER_KG';
 }
+
+export interface PendingLine {
+  pendingPacks: number;
+  pendingWeightKg: Decimal;
+  /** Value of the bags still to deliver at the booked rate (half rupee down). */
+  pendingAmount: Decimal;
+}
+
+/**
+ * What is left of an order line: ordered − dispatched (dispatched never goes below 0 or
+ * above the order). The pending amount is priced like any order line, so the report's
+ * "AMOUNT" = weight remaining ÷ 40 × rate for rice and pulses.
+ */
+export function pendingLine(line: OrderLineCalcInput & { dispatchedPacks: number }): PendingLine {
+  const pending = Math.max(0, line.qtyPacks - Math.max(0, line.dispatchedPacks));
+  const c = calcOrderLine({ ...line, qtyPacks: pending });
+  return { pendingPacks: pending, pendingWeightKg: c.weightKg, pendingAmount: c.amount };
+}

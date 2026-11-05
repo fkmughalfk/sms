@@ -40,3 +40,12 @@ describe('order preview', () => {
     expect(packWord(6, 1)).toBe('carton');
   });
 });
+
+describe('packText', () => {
+  it('shows bags, outers and cartons', async () => {
+    const { packText } = await import('./orders');
+    expect(packText('25', 1)).toBe('25 kg');
+    expect(packText('40', 4)).toBe('4 × 10 kg');
+    expect(packText('6', 12)).toBe('12 × 0.5 kg');
+  });
+});

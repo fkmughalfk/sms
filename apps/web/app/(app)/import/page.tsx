@@ -146,6 +146,13 @@ export default function ImportPage() {
           old workbook. Check first — nothing is written until you press Import. Running it again
           only adds what isn&apos;t there yet.
         </p>
+        <p className="text-sm">
+          Going live with orders?{' '}
+          <Link href="/import/pending-orders" className="font-medium underline">
+            Import pending orders
+          </Link>{' '}
+          from the old pending-orders report.
+        </p>
       </div>
 
       <Card title="1. Workbook">

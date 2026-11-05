@@ -167,7 +167,9 @@ export const orderLineSchema = z.object({
   ratePerPack: z.string(),
   amount: z.string(),
   weightKg: z.string(),
-  /** Bags / cartons still to invoice (= qtyPacks until invoices reduce it, phase O4). */
+  /** Already dispatched (opening import; invoices add to it from phase O4). */
+  dispatchedPacks: z.number(),
+  /** Bags / cartons still to deliver. */
   pendingPacks: z.number(),
 });
 export type OrderLine = z.infer<typeof orderLineSchema>;

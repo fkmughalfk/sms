@@ -11,6 +11,7 @@ import {
 import { findDuplicateProducts, invoiceInputSchema } from './invoices';
 import { partySchema, productSchema, updatePartySchema, updateProductSchema } from './masters';
 import { paymentInputSchema, updatePaymentSchema } from './payments';
+import { normalizeAlias } from './pending';
 import { rateListInputSchema } from './rate-lists';
 import { createUserSchema, updateUserSchema } from './users';
 
@@ -279,5 +280,12 @@ describe('rate list input', () => {
     expect(
       rateListInputSchema.safeParse({ effectiveFrom: '2026-11-04', items: [item] }).success,
     ).toBe(false);
+  });
+});
+
+describe('normalizeAlias', () => {
+  it('trims, single-spaces and upper-cases names from other software', () => {
+    expect(normalizeAlias('  Farhan   sb ')).toBe('FARHAN SB');
+    expect(normalizeAlias('1121 STEAM')).toBe('1121 STEAM');
   });
 });

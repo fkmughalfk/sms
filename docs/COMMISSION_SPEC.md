@@ -36,6 +36,8 @@
 
 ## 2. Which rate applies to an invoice line
 
+> **To rework before building:** rule 3 means the person who earns the commission is not always the invoice's salesman (Farhan earns on other salesmen's invoices). §2 and §3 below still assume salesman = earner. They will become "who earns what on each line" (Farhan, Arslan Dar, the line's salesman) once the open question in §1.3 is answered.
+
 Checked in this order; the first match wins:
 
 1. **Salesman + sub-party split** (e.g. Farhan + Arslan Dar): the sub-party gets its flat share (0.15%), and the salesman gets their group rate (step 2) minus that share, never below 0. Pulses: 0.25% − 0.15% = 0.10%.

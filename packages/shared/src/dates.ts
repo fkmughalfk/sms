@@ -101,3 +101,19 @@ export function eachMonth(from: DateString, to: DateString): MonthString[] {
 export function daysBetween(from: DateString, to: DateString): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
+
+/** Local date-time in Asia/Karachi, `YYYY-MM-DDTHH:mm` (rate lists take effect at a time of day). */
+export type LocalDateTimeString = string;
+
+// Pakistan has kept UTC+5 all year since 2009 (no daylight saving).
+const KARACHI_OFFSET_MS = 5 * 3_600_000;
+
+/** `YYYY-MM-DDTHH:mm` in Asia/Karachi → the instant. */
+export function fromBusinessDateTime(local: LocalDateTimeString): Date {
+  return new Date(Date.parse(`${local}:00Z`) - KARACHI_OFFSET_MS);
+}
+
+/** Instant → `YYYY-MM-DDTHH:mm` in Asia/Karachi. */
+export function toBusinessDateTime(instant: Date): LocalDateTimeString {
+  return new Date(instant.getTime() + KARACHI_OFFSET_MS).toISOString().slice(0, 16);
+}

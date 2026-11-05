@@ -15,3 +15,4 @@ export * from './schemas/payments';
 export * from './schemas/reports';
 export * from './schemas/import';
 export * from './schemas/audit';
+export * from './schemas/rate-lists';

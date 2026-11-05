@@ -1,6 +1,6 @@
 # Orders & Pending Orders Module: Design (draft for review)
 
-> Status: **proposal, not built.** Owner's answers recorded 2026-11-05 (§9). Nothing in the main app changes until this is approved.
+> Status: **O1 (rate lists) built** on branch `claude/sku-extraction-translation-0ws2nh`; the other phases are proposals. Owner's answers recorded 2026-11-05 (§9). Nothing in the main app changes until this is approved.
 > Lives inside the Sales Management System and reuses its products, parties, cities, salespersons, users, credit control, invoices and payments.
 
 ## 1. How it works
@@ -169,7 +169,7 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 
 | Phase                           | Builds                                                                                  | Done when                                                                                |
 | ------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| **O1. Rate lists**              | Schema, API, screens, copy previous, Excel upload                                       | The 04-11-2026 list can be entered and is "current"                                      |
+| **O1. Rate lists** ✅ built     | Schema, API, screens, copy previous, Excel upload                                       | The 04-11-2026 list can be entered and is "current"                                      |
 | **O2. Orders**                  | Orders, lines, approval, credit warning, statuses                                       | A salesman books order 3211 with list rates; the office approves it                      |
 | **O3. Pending orders report**   | Report in the current layout, per-party PDF, opening-order import, starting order no.   | The 04-11-2026 sample reproduces exactly (83,226 bags, Rs 538,896,375)                   |
 | **O4. Invoice PDF reader**      | Upload, parser, checks, aliases, Needs review, auto-post, order allocation, PDF storage | The sample invoice posts, and its lines reduce the right pending orders                  |

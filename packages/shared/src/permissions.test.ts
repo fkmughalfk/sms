@@ -31,6 +31,7 @@ const MATRIX: Record<Permission, [superAdmin: boolean, admin: boolean, user: boo
   'export.excel': [true, true, false],
   'audit.view': [true, true, false],
   'import.run': [true, false, false],
+  'rateList.manage': [true, true, false],
 };
 
 describe('permission matrix (spec §3)', () => {

@@ -14,6 +14,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RateListsModule } from './rate-lists/rate-lists.module';
 import { RecoveryModule } from './recovery/recovery.module';
 import { ReportsModule } from './reports/reports.module';
 import { SettingsModule } from './settings/settings.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     MastersModule,
+    RateListsModule,
     InvoicesModule,
     PaymentsModule,
     RecoveryModule,

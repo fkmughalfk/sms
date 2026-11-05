@@ -65,18 +65,19 @@ model Category {
 }
 
 model Product {
-  id             String        @id @default(cuid())
-  sku            Int           @unique
-  name           String        @unique @db.Citext
-  unitWeightKg   Decimal       @db.Decimal(10, 3)
-  packPcs        Int           @default(1)
+  id             String         @id @default(cuid())
+  sku            Int            @unique
+  name           String         @unique @db.Citext
+  unitWeightKg   Decimal        @db.Decimal(10, 3)
+  packPcs        Int            @default(1)
   categoryId     String
-  category       Category      @relation(fields: [categoryId], references: [id])
-  commissionRate Decimal?      @db.Decimal(8, 6)
-  isActive       Boolean       @default(true)
+  category       Category       @relation(fields: [categoryId], references: [id])
+  commissionRate Decimal?       @db.Decimal(8, 6)
+  isActive       Boolean        @default(true)
   lines          InvoiceLine[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  rateListItems  RateListItem[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model City {
@@ -219,4 +220,40 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// ── Rate lists (docs/ORDERS_DELIVERY_SPEC.md §2) ──
+// Dated market rates. The current list is the newest one whose effectiveFrom has passed.
+
+enum RateBasis {
+  PER_40KG // rice, pulses
+  PER_UNIT // desi ghee, spices: price of one tin / pack as printed
+}
+
+model RateList {
+  id            String         @id @default(cuid())
+  effectiveFrom DateTime       @unique
+  remarks       String?
+  items         RateListItem[]
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model RateListItem {
+  id          String    @id @default(cuid())
+  rateListId  String
+  rateList    RateList  @relation(fields: [rateListId], references: [id], onDelete: Cascade)
+  lineNo      Int
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  cropYear    String    @default("") // "2025-2026"; "" = none (keeps the unique key simple)
+  basis       RateBasis
+  rate        Decimal?  @db.Decimal(14, 2) // null when not available (N/A)
+  isAvailable Boolean   @default(true)
+  note        String?
+
+  @@unique([rateListId, productId, cropYear])
+  @@index([productId])
 }

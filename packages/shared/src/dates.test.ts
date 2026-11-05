@@ -6,8 +6,10 @@ import {
   eachMonth,
   fiscalYearRange,
   formatMonthHeading,
+  fromBusinessDateTime,
   monthRange,
   toBusinessDate,
+  toBusinessDateTime,
 } from './dates';
 
 describe('business dates (Asia/Karachi, UTC+5)', () => {
@@ -59,5 +61,16 @@ describe('eachDay / eachMonth', () => {
       '2027-02',
     ]);
     expect(eachMonth('2026-01-01', '2026-12-31')).toHaveLength(12);
+  });
+});
+
+describe('business date-time (rate lists)', () => {
+  it('Karachi 09:30 is 04:30 UTC', () => {
+    expect(fromBusinessDateTime('2026-11-04T09:30').toISOString()).toBe('2026-11-04T04:30:00.000Z');
+  });
+
+  it('round-trips, including across midnight', () => {
+    expect(toBusinessDateTime(new Date('2026-11-03T20:15:00Z'))).toBe('2026-11-04T01:15');
+    expect(toBusinessDateTime(fromBusinessDateTime('2026-11-04T00:00'))).toBe('2026-11-04T00:00');
   });
 });

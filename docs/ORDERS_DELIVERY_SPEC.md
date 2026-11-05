@@ -174,7 +174,7 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 | **O3. Pending orders report**   | Report in the current layout, per-party PDF, opening-order import, starting order no.   | The 04-11-2026 sample reproduces exactly (83,226 bags, Rs 538,896,375)                   |
 | **O4. Invoice PDF reader**      | Upload, parser, checks, aliases, Needs review, auto-post, order allocation, PDF storage | The sample invoice posts, and its lines reduce the right pending orders                  |
 | **O5. Payment PDF reader**      | Parser + checks + post                                                                  | Needs a sample payment PDF                                                               |
-| **O6. Prompt-payment discount** | Calc, earned list, ledger credit                                                        | A 30-day party paying on day 25 earns exactly the order's discount; on day 31 it doesn't |
+| **O6. Prompt-payment discount** | Calc, automatic ledger credit, reversal                                                 | A 30-day party paying on day 25 earns exactly the order's discount; on day 31 it doesn't |
 | **C. Commission**               | See `docs/COMMISSION_SPEC.md`                                                           | Its own tests                                                                            |
 
 ## 11. Still open (to be supplied later by the owner)

@@ -19,6 +19,8 @@
 
    Both shares are tracked. Arslan Dar is the only case today, but the office can add more splits later.
 
+   **Arslan Dar is also a salesman** for sales booked under his own name, at a **flat 0.15% on all categories** (Rice, Pulses, Desi Ghee, Spices). Commission reports therefore show his own sales and his share of Farhan's sub-party sales separately, as well as combined.
+
 3. **Recalculate all invoices** with the new rates once they are set up. Past commission figures and reports will change.
 
 4. Commission is still **amount × rate, not rounded** (stored to 4 dp, shown to 2 dp), on each line's amount.
@@ -68,10 +70,11 @@ A SUPER_ADMIN action, **Recalculate commission**:
 ## 6. Tests
 
 - Farhan: a rice line at 0.35%, a pulses line at 0.25%, a ghee/spices line at 0.35%.
+- Arslan Dar's own sales: 0.15% on every group.
 - Farhan through Arslan Dar: every group gives 0.20% to Farhan and 0.15% to Arslan Dar, 0.35% in total.
 - A salesman with no rate for a group falls back to the category/default rate.
 - Recalculation: the dry run changes nothing; the run updates commission only, and amounts and the §6.4 golden amounts are untouched.
 
 ## 7. Needed from the owner
 
-- **Every other salesman's rate per group** (only Farhan's are known).
+- **Every other salesman's rate per group** (Farhan's and Arslan Dar's are known).

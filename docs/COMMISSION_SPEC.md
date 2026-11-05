@@ -26,9 +26,13 @@
 
    **Arslan Dar is also a salesman** for sales booked under his own name, at a **flat 0.15% on all categories** (Rice, Pulses, Desi Ghee, Spices). Commission reports therefore show his own sales and his share of Farhan's sub-party sales separately, as well as combined.
 
-3. **Recalculate all invoices** with the new rates once they are set up. Past commission figures and reports will change.
+3. **Farhan earns on other salesmen's sales too.** Other salesmen have no commission rate of their own yet. On their sales, Farhan earns commission at his rates above, and the salesman earns nothing until the office gives them a rate.
 
-4. Commission is still **amount × rate, not rounded** (stored to 4 dp, shown to 2 dp), on each line's amount.
+   _Still open:_ on Arslan Dar's own sales, does Farhan also earn, and does Arslan's 0.15% come on top of Farhan's rate or out of it? The rest of the design doesn't depend on this; it only affects that one rule.
+
+4. **Recalculate all invoices** with the new rates once they are set up. Past commission figures and reports will change.
+
+5. Commission is still **amount × rate, not rounded** (stored to 4 dp, shown to 2 dp), on each line's amount.
 
 ## 2. Which rate applies to an invoice line
 
@@ -81,4 +85,5 @@ A SUPER_ADMIN action, **Recalculate commission**:
 
 ## 7. Needed from the owner
 
-- **Every other salesman's rate per group** (Farhan's and Arslan Dar's are known).
+- Other salesmen: no rates yet (they earn 0 until set); Farhan earns on their sales.
+- The Arslan Dar own-sales question in §1.3.

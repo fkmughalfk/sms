@@ -13,9 +13,14 @@
    | Desi Ghee | 0.35% |
    | Spices    | 0.35% |
 
-2. **Sub-party split.** On sales through sub-party **Arslan Dar**, the commission is **0.35% in total, on every group**, shared:
-   - **Farhan 0.20%**
-   - **Arslan Dar 0.15%** (taken out of Farhan's commission)
+2. **Sub-party split.** On Farhan's sales through sub-party **Arslan Dar**, Arslan takes a flat **0.15%** out of Farhan's normal rate for that group. The total stays at Farhan's normal rate:
+
+   | Group     | Total (Farhan's rate) | Farhan keeps | Arslan Dar |
+   | --------- | --------------------- | ------------ | ---------- |
+   | Rice      | 0.35%                 | 0.20%        | 0.15%      |
+   | Pulses    | 0.25%                 | **0.10%**    | 0.15%      |
+   | Desi Ghee | 0.35%                 | 0.20%        | 0.15%      |
+   | Spices    | 0.35%                 | 0.20%        | 0.15%      |
 
    Both shares are tracked. Arslan Dar is the only case today, but the office can add more splits later.
 
@@ -29,7 +34,7 @@
 
 Checked in this order; the first match wins:
 
-1. **Salesman + sub-party split** (e.g. Farhan + Arslan Dar): salesman share 0.20%, sub-party share 0.15%, any group.
+1. **Salesman + sub-party split** (e.g. Farhan + Arslan Dar): the sub-party gets its flat share (0.15%), and the salesman gets their group rate (step 2) minus that share, never below 0. Pulses: 0.25% − 0.15% = 0.10%.
 2. **Salesman + group rate** (e.g. Farhan + Pulses = 0.25%).
 3. Fallback, as today: product override → category rate → default rate (0.35%). This covers invoices with no salesman or a salesman with no rate set for that group.
 
@@ -40,8 +45,7 @@ SalespersonCommissionRate  id, salespersonId, categoryId, rate Decimal(8,6)
                            @@unique(salespersonId, categoryId)
 
 CommissionSplit            id, salespersonId, subPartyId,
-                           salespersonRate Decimal(8,6)   (0.0020)
-                           subPartyRate    Decimal(8,6)   (0.0015)
+                           subPartyRate    Decimal(8,6)   (0.0015, taken out of the salesman's group rate)
                            isActive        @@unique(salespersonId, subPartyId)
 ```
 
@@ -71,7 +75,7 @@ A SUPER_ADMIN action, **Recalculate commission**:
 
 - Farhan: a rice line at 0.35%, a pulses line at 0.25%, a ghee/spices line at 0.35%.
 - Arslan Dar's own sales: 0.15% on every group.
-- Farhan through Arslan Dar: every group gives 0.20% to Farhan and 0.15% to Arslan Dar, 0.35% in total.
+- Farhan through Arslan Dar: rice, ghee and spices give Farhan 0.20% and Arslan 0.15%; pulses give Farhan 0.10% and Arslan 0.15%. The total always equals Farhan's normal rate.
 - A salesman with no rate for a group falls back to the category/default rate.
 - Recalculation: the dry run changes nothing; the run updates commission only, and amounts and the §6.4 golden amounts are untouched.
 

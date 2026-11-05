@@ -1,6 +1,6 @@
 # Orders & Delivery Module: Design (draft for review)
 
-> Status: **proposal, not built.** Nothing in the main app changes until this is approved.
+> Status: **proposal, not built.** Owner's answers recorded 2026-11-05 (§8). Nothing in the main app changes until this is approved.
 > Lives inside the Sales Management System and reuses its products, parties, cities, salespersons, users, credit control and invoices.
 
 ## 1. The flow
@@ -44,9 +44,21 @@ Rates move with the market, sometimes daily and sometimes weekly, so they are ke
 - A **rate list** has an _effective from_ date and time, and one rate per active product.
 - The office creates a new list whenever the market changes. The fastest way is **"Copy previous list"**, then change only the rates that moved. It can also **upload** the list from Excel.
 - The **current list** is the newest one whose _effective from_ has passed. Old lists are kept for history.
-- **Order lines take their rate from the current list** when the order is booked. The office can still change a rate during approval, and that change is recorded in the audit log.
+- **Units:** rice and pulses are rated **per 40 kg**. Desi ghee and spices are rated **per kg**; the system converts with rate40Kg = rate per kg × 40, which is exact.
+- **Order lines take their rate from the current list when the order is booked, and that booked rate goes on the invoice**, even if the market moves before loading. The office can still change a rate during approval, and that change is recorded in the audit log.
 - Products with no rate in the current list cannot be ordered until the office adds one.
-- Discounts: the Urdu order form has a discount per group (rice, pulses, ghee, spices). The order can carry these discounts, and the line rate on the invoice is the rate **after** discount. _(See open question 2.)_
+
+## 2a. Prompt-payment discount (credit policy)
+
+The discount is **not** taken off the invoice rate. It is a reward for paying on time:
+
+- Each party has **credit days** (already in the main app: most are 30, some 40, set party by party).
+- Each order carries an agreed **discount per group**, written on the order as on the Urdu order form: rice and pulses in Rs per 40 kg, desi ghee and spices in Rs per kg. Invoices made from the order copy these terms.
+- The invoice prints at the full booked rate. If the party **clears that invoice within its credit days** (invoice date + credit days, Asia/Karachi), it earns
+  `discount = Σ lines: rice/pulses → discount per 40 kg ÷ 40 × weight kg; ghee/spices → discount per kg × weight kg`, in whole rupees with a half rupee rounding down.
+- "Cleared" uses the same oldest-debt-first allocation as the existing ageing calculation (`calc/ageing.ts`).
+- The discount is **credited in the party's ledger** as its own entry type, _Discount_, next to Invoices (debit) and Payments (credit). It reduces outstanding and shows in the recovery reports.
+- The system lists the invoices that have **earned** a discount, and those still **eligible** with the date their window closes. The office posts each credit with one click, can change or skip it, and the action is audited. _(Assumption: posting is a deliberate office step, not automatic.)_
 
 ## 3. Data model (new and changed tables)
 
@@ -54,25 +66,33 @@ New tables (Prisma). Money is `Decimal`, and every calculated field is recompute
 
 ```
 RateList        id, effectiveFrom (timestamp), remarks, createdById, createdAt
-RateListItem    id, rateListId, productId, rate40Kg Decimal(14,2)     @@unique(rateListId, productId)
+RateListItem    id, rateListId, productId, rate Decimal(14,2), unit (PER_40KG | PER_KG)
+                @@unique(rateListId, productId)
 
-Order           id, orderNo Int @unique (= "Booking No." on the invoice), orderDate,
+Order           id, orderNo Int @unique (assigned by the system; = "Booking No." on the invoice), orderDate,
                 partyId, subPartyId?, cityId?, salespersonId?, status, remarks,
-                rateListId (the list its rates came from), discounts (per group, see Q2),
+                rateListId (the list its rates came from),
+                discount terms per group (rice, pulses per 40 kg; ghee, spices per kg),
                 totalPacks, totalWeightKg, totalAmount (computed),
                 approvedById?, approvedAt?, closedReason?, createdById, timestamps
-OrderLine       id, orderId, lineNo, productId, qtyPacks, listRate40Kg, rate40Kg (after discount/edit),
+OrderLine       id, orderId, lineNo, productId, qtyPacks, listRate40Kg, rate40Kg (booked; office may edit),
                 packWeightKg (snapshot), amount, weightKg
 
 Delivery        id, deliveryNo, orderId, deliveryDate, status (LOADING | DISPATCHED),
                 vehicleNo, doNo, dcNo, ogpNo, driverName?, driverPhone?, remarks,
                 invoiceId? (set when dispatched), createdById, timestamps
 DeliveryLine    id, deliveryId, orderLineId, qtyPacks         (cannot exceed bags still pending)
+
+DiscountCredit  id, partyId, invoiceId @unique, creditDate, amount Decimal(18,2),
+                computedAmount (what the rule gave), remarks, createdById, timestamps
 ```
 
 Changes to existing tables:
 
 - **Invoice**: add `orderId?`, `deliveryId?` (unique), `doNo?`, `vehicleNo?`, `dcNo?`, `ogpNo?`, `bookingNo?`. These are header fields for the print and contain no money. Invoices entered by hand, the way they are today, keep working with these fields left blank.
+- **Invoice**: also snapshot the order's discount terms and the party's credit days at save time (rule 4 style), so later changes don't rewrite history.
+- **Category → discount group**: each category maps to one discount group (Rice, Pulses, Desi Ghee, Spices). _(To confirm against the live app's categories.)_
+- **Ledger, recovery, ageing**: Discount credits count as credits, like payments.
 - **Setting**: add `cropYear` (e.g. `2025-2026`), printed on every invoice line.
 - **Print only, as you decided**: Add Expenses, Less Expenses and Less-Freight print as **0**, Value and Net payable equal the total, and the amount in words is generated.
 
@@ -108,21 +128,34 @@ You chose to give warehouse staff the existing **USER** login. New permissions:
 
 ## 6. Build plan (one phase per session, tests pass before each commit)
 
-| Phase                      | Builds                                                                                                      | Done when                                                                       |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **O1. Rate lists**         | Schema + API + screens + copy previous + Excel upload                                                       | Office can publish a list; "current list" resolves by date and time             |
-| **O2. Orders**             | Order schema, API, form, list, detail; credit warning; statuses up to Submitted                             | A salesman books an order with rates from the current list                      |
-| **O3. Approval**           | Approve / reject / edit / close, audit, permissions                                                         | The office approves; the order shows on the dispatch board                      |
-| **O4. Dispatch → Invoice** | Delivery schema + API + screens; partial deliveries; auto-invoice in one transaction; invoice header fields | Loading 200 of 300 bags creates an invoice for 200; the order shows 100 pending |
-| **O5. Invoice print**      | Print view in your invoice format, multi-page, amount in words                                              | Print matches the sample layout                                                 |
-| **O6. Reports**            | Pending orders, dispatch register                                                                           | Numbers tie to orders and invoices                                              |
+| Phase                           | Builds                                                                                                                                | Done when                                                                                           |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **O1. Rate lists**              | Schema + API + screens + copy previous + Excel upload                                                                                 | Office can publish a list; "current list" resolves by date and time                                 |
+| **O2. Orders**                  | Order schema, API, form, list, detail; credit warning; statuses up to Submitted                                                       | A salesman books an order with rates from the current list                                          |
+| **O3. Approval**                | Approve / reject / edit / close, audit, permissions                                                                                   | The office approves; the order shows on the dispatch board                                          |
+| **O4. Dispatch → Invoice**      | Delivery schema + API + screens; partial deliveries; auto-invoice in one transaction; invoice header fields                           | Loading 200 of 300 bags creates an invoice for 200; the order shows 100 pending                     |
+| **O5. Invoice print**           | Print view in your invoice format, multi-page, amount in words                                                                        | Print matches the sample layout                                                                     |
+| **O6. Reports**                 | Pending orders by party/product/salesperson, dispatch register                                                                        | Numbers tie to orders and invoices                                                                  |
+| **O7. Prompt-payment discount** | DiscountCredit schema + calc in `packages/shared` + eligible/earned list + post credit; ledger, recovery and ageing include discounts | A 30-day party paying in full on day 25 earns exactly the order-form discount; on day 31 it doesn't |
 
-## 7. Open questions (please answer before phase O1)
+## 7. Still open
 
-1. **Rate change after booking:** if the market rate changes between booking and loading, does the invoice use the **booked rate** (my assumption) or the **rate on the loading day**?
-2. **Discounts:** keep the order form's per-group discount (rice, pulses, ghee, spices), or are rates in the rate list already final?
-3. **Ghee and spices pricing:** the main app prices every line by Rate 40Kg. Your order form prices ghee **per kg (carton)** and spices **per pack**. In the main app today, are ghee and spices entered as a 40 kg rate? If not, rate lists need a "rate per kg / per pack" option.
-4. **Numbers:** which of D.O. no., DC no. and OGP no. should the system number automatically, and which are typed from a paper book? (In the sample, OGP 23158 looks like a separate book.)
-5. **Order number:** a separate sequence starting at 1, printed as "Booking No." on the invoice?
-6. **Who books orders:** do salesmen have their own logins, or does the office enter orders they phone in?
-7. **Stock:** should the system check the bags in stock before loading, or is stock out of scope for now?
+- **D.O., DC and OGP numbering:** the owner will send invoice PDFs; the numbering (automatic or typed) will be decided from them before phase O4.
+- **Discount groups:** confirm how the live app's categories map to Rice / Pulses / Desi Ghee / Spices (before O7).
+
+## 8. Owner's answers (2026-11-05)
+
+| #   | Question                                | Answer                                                                                                                                                                      |
+| --- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Rate change between booking and loading | **Booked rate** goes on the invoice                                                                                                                                         |
+| 2   | Discounts                               | **Prompt-payment discount** per group, written on each order; earned when the party pays within its credit days (30, 40… set per party); **credited in the party's ledger** |
+| 3   | Ghee & spices pricing                   | Rated **per kg**                                                                                                                                                            |
+| 4   | D.O. / DC / OGP numbers                 | Pending; owner will send invoice PDFs                                                                                                                                       |
+| 5   | Order number                            | **Assigned by the system** (printed as Booking No.)                                                                                                                         |
+| 6   | Who books orders                        | **Salesmen (own logins) and office**                                                                                                                                        |
+| 7   | Stock                                   | No stock module; the system **tracks pending orders**                                                                                                                       |
+| —   | Module location                         | Inside the main app, built on a branch, not merged until approved                                                                                                           |
+| —   | Users                                   | Salesmen, office/admin, warehouse (on the existing USER login)                                                                                                              |
+| —   | Scope                                   | Full: order → delivery → invoice                                                                                                                                            |
+| —   | Language                                | English                                                                                                                                                                     |
+| —   | Invoice expenses / freight              | Print-only, always 0                                                                                                                                                        |

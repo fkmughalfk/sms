@@ -44,7 +44,17 @@ Rates move with the market, sometimes daily and sometimes weekly, so they are ke
 - A **rate list** has an _effective from_ date and time, and one rate per active product.
 - The office creates a new list whenever the market changes. The fastest way is **"Copy previous list"**, then change only the rates that moved. It can also **upload** the list from Excel.
 - The **current list** is the newest one whose _effective from_ has passed. Old lists are kept for history.
-- **Units:** rice and pulses are rated **per 40 kg**. Desi ghee and spices are rated **per kg**; the system converts with rate40Kg = rate per kg × 40, which is exact.
+- Modelled on the real list (`docs/rate-lists/2026-11-04.csv`, from the PDF of 04-11-2026). Each entry has:
+  - **product**;
+  - **crop year** (rice especially: Steam Platinum 25 kg is 13,500 for the 2025-26 crop and 11,500 for 2026-27, both on sale at once);
+  - **rate** and **basis**;
+  - **available** (N/A on the list means it can't be ordered);
+  - a **note** shown to the salesman (origin such as "Australia", "Crimson", "S 11", or "On approval – advance only" for Shadmani).
+- **Basis:** rice and pulses are rated **per 40 kg**. Desi ghee and spices are rated **per pack (tin)**, exactly as printed (ghee 1 kg = 2,550, 500 g = 1,450; cumin 5.5 kg = 6,550).
+- **Ghee is ordered by the carton** (6 × 1 kg or 12 × 500 g). Carton price = tin price × tins per carton (the product's pack pcs).
+- The list also prints 50 kg and 25 kg bag prices. These are 40 kg rate ÷ 40 × bag kg, **rounded half up for display** (e.g. 7,062.5 → 7,063). The invoice uses the exact bag rate (7,062.50) and rounds the line amount half down, so 1 bag invoices at 7,062. Odd bags can differ from the printed list by Rs 1.
+- List footer text (e.g. "all orders received today are on the new rate list", "all pulses are non-returnable") is kept as the list's remarks and printed with it.
+- The salesman picks a **product + crop year** from the current list, and the crop year prints on the invoice line.
 - **Order lines take their rate from the current list when the order is booked, and that booked rate goes on the invoice**, even if the market moves before loading. The office can still change a rate during approval, and that change is recorded in the audit log.
 - Products with no rate in the current list cannot be ordered until the office adds one.
 
@@ -66,8 +76,9 @@ New tables (Prisma). Money is `Decimal`, and every calculated field is recompute
 
 ```
 RateList        id, effectiveFrom (timestamp), remarks, createdById, createdAt
-RateListItem    id, rateListId, productId, rate Decimal(14,2), unit (PER_40KG | PER_KG)
-                @@unique(rateListId, productId)
+RateListItem    id, rateListId, productId, cropYear String? (e.g. "2025-2026"),
+                basis (PER_40KG | PER_UNIT), rate Decimal(14,2), isAvailable, note?
+                @@unique(rateListId, productId, cropYear)
 
 Order           id, orderNo Int @unique (assigned by the system; = "Booking No." on the invoice), orderDate,
                 partyId, subPartyId?, cityId?, salespersonId?, status, remarks,
@@ -75,7 +86,8 @@ Order           id, orderNo Int @unique (assigned by the system; = "Booking No."
                 discount terms per group (rice, pulses per 40 kg; ghee, spices per kg),
                 totalPacks, totalWeightKg, totalAmount (computed),
                 approvedById?, approvedAt?, closedReason?, createdById, timestamps
-OrderLine       id, orderId, lineNo, productId, qtyPacks, listRate40Kg, rate40Kg (booked; office may edit),
+OrderLine       id, orderId, lineNo, productId, cropYear?, qtyPacks (ghee: cartons),
+                basis, listRate, rate (booked; office may edit), ratePerPack,
                 packWeightKg (snapshot), amount, weightKg
 
 Delivery        id, deliveryNo, orderId, deliveryDate, status (LOADING | DISPATCHED),
@@ -93,7 +105,8 @@ Changes to existing tables:
 - **Invoice**: also snapshot the order's discount terms and the party's credit days at save time (rule 4 style), so later changes don't rewrite history.
 - **Category → discount group**: each category maps to one discount group (Rice, Pulses, Desi Ghee, Spices). _(To confirm against the live app's categories.)_
 - **Ledger, recovery, ageing**: Discount credits count as credits, like payments.
-- **Setting**: add `cropYear` (e.g. `2025-2026`), printed on every invoice line.
+- **InvoiceLine**: add `cropYear?` and `rateBasis` (default PER_40KG, so existing invoices are unchanged). For PER_UNIT lines the rate is the tin or pack price, and ratePerPack = rate × pack pcs; for PER_40KG lines nothing changes. **This touches the shared invoice calc and the invoice form, so it gets its own tests**, and the golden test must still pass.
+- **Products**: the list has items the product master lacks (e.g. Hazara B-2 40 kg). The office adds them as products before they appear on a rate list.
 - **Print only, as you decided**: Add Expenses, Less Expenses and Less-Freight print as **0**, Value and Net payable equal the total, and the amount in words is generated.
 
 Rules carried over from the main app: snapshots of pack weight and commission rate on invoice lines; each write runs in one transaction plus an `AuditLog` entry; half-rupee amounts round down; dates use Asia/Karachi.
@@ -145,11 +158,21 @@ You chose to give warehouse staff the existing **USER** login. New permissions:
 
 ## 8. Owner's answers (2026-11-05)
 
+From the rate list review:
+
+| Question            | Answer                                                                          |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Crop year           | **Per line**, picked from the rate list and printed on the invoice              |
+| Ghee & spices basis | **Per pack (tin)**, as printed on the list (this replaces the earlier "per kg") |
+| Ghee quantity       | **By carton** (6 × 1 kg or 12 × 500 g)                                          |
+
+Earlier answers:
+
 | #   | Question                                | Answer                                                                                                                                                                      |
 | --- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | Rate change between booking and loading | **Booked rate** goes on the invoice                                                                                                                                         |
 | 2   | Discounts                               | **Prompt-payment discount** per group, written on each order; earned when the party pays within its credit days (30, 40… set per party); **credited in the party's ledger** |
-| 3   | Ghee & spices pricing                   | Rated **per kg**                                                                                                                                                            |
+| 3   | Ghee & spices pricing                   | ~~per kg~~ → **per pack**, see above                                                                                                                                        |
 | 4   | D.O. / DC / OGP numbers                 | Pending; owner will send invoice PDFs                                                                                                                                       |
 | 5   | Order number                            | **Assigned by the system** (printed as Booking No.)                                                                                                                         |
 | 6   | Who books orders                        | **Salesmen (own logins) and office**                                                                                                                                        |

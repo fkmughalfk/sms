@@ -20,7 +20,7 @@ The full specification is in `docs/PROJECT_SPEC.md`. Read it before starting any
 
 1. **Money is Decimal**: use `decimal.js` in code and `Decimal` in Prisma. Never do money math with JS `number`.
 2. **The server recomputes** every calculated field (rate/pack, amount, commission, weight, totals) using `packages/shared/src/calc`. Ignore client-sent calculated values.
-3. Amount = `ROUND_HALF_UP(rate40Kg / 40 × packWeightKg × qtyPacks, 0)`. Commission = amount × rate, unrounded (stored to 4 dp). The golden test for invoice #15 (spec §6.4: total 1,272,188 / commission 4,452.658 / 200 bags) must always pass.
+3. Amount = `ROUND_HALF_DOWN(rate40Kg / 40 × packWeightKg × qtyPacks, 0)`: a half rupee rounds **down** (owner's decision, 2026-11-05). Commission = amount × rate, unrounded (stored to 4 dp). The golden test for invoice #15 (spec §6.4: total 1,272,187 / commission 4,452.6545 / 200 bags) must always pass.
 4. **Snapshot** `packWeightKg` and `commissionRate` onto each invoice line when it is saved.
 5. **Permissions** come from `packages/shared/src/permissions.ts`. Enforce them in the API guard, and mirror them in the UI.
 6. Invoices and payments are **hard deleted** (owner's decision, 2026-11-01): the row and its lines leave the DB, the invoice number becomes free, and the `AuditLog` DELETE entry keeps a full snapshot. Keep `deletedAt: null` filters for legacy rows. Masters are deactivated (`isActive`). A master or user that nothing references may be hard deleted. Anything referenced gets a 409 that says to deactivate it instead.

@@ -531,7 +531,7 @@ commissionRate =
 ### 6.2 Per line
 ```
 ratePerPack = rate40Kg ÷ 40 × packWeightKg                    // G = F/40*E
-amount      = ROUND_HALF_UP(ratePerPack × qtyPacks, 0)        // H = ROUND(G*D, 0)  → whole rupees
+amount      = ROUND_HALF_DOWN(ratePerPack × qtyPacks, 0)      // whole rupees; a half rupee rounds DOWN (owner, 2026-11-05; Excel rounded it up)
 commission  = amount × commissionRate                         // I = H * rate   (NOT rounded; store 4 dp, display 2 dp)
 weightKg    = qtyPacks × packWeightKg                         // J = D*E
 ```
@@ -554,16 +554,18 @@ recoveryRate    = recovered ÷ invoiced
 
 ### 6.4 Golden test — Invoice #15 (must pass exactly)
 
+> Updated 2026-11-05: half rupees now round down, so line 3 is 192,187 (the Excel sheet showed 192,188) and the total is 1,272,187 (Excel: 1,272,188). The Excel importer reports such lines as mismatches and stores the half-down amount.
+
 Invoice 15 · 2026-09-02 · Pak Rice Traders · Dina · ASM Farhan Khalid · commission rate 0.35%
 
 | # | Product | Bags | Pack Wt | Rate 40Kg | Rate/Pack | Amount | Commission | Weight |
 |--|--|--:|--:|--:|--:|--:|--:|--:|
 | 1 | MASAR SABIT 25KG | 30 | 25 | 8,000 | 5,000.00 | 150,000 | 525.0000 | 750 |
 | 2 | DAAL MASH CHARI 25KG | 20 | 25 | 16,250 | 10,156.25 | 203,125 | 710.9375 | 500 |
-| 3 | DAAL MOONG 25KG | 30 | 25 | 10,250 | 6,406.25 | **192,188** *(192,187.5 rounded up)* | 672.6580 | 750 |
+| 3 | DAAL MOONG 25KG | 30 | 25 | 10,250 | 6,406.25 | **192,187** *(192,187.5 rounded half down)* | 672.6545 | 750 |
 | 4 | DALL MASOOR 25KG | 20 | 25 | 8,400 | 5,250.00 | 105,000 | 367.5000 | 500 |
 | 5 | DAAL CHANNA SUPREME 25KG | 100 | 25 | 9,950 | 6,218.75 | 621,875 | 2,176.5625 | 2,500 |
-| | **TOTAL** | **200** | | | | **1,272,188** | **4,452.6580** | **5,000** |
+| | **TOTAL** | **200** | | | | **1,272,187** | **4,452.6545** | **5,000** |
 
 Write this as a unit test in `packages/shared/src/calc/__tests__/invoice.test.ts` **before** writing the calc code. Also test: a 10KG × 4-pcs product (pack weight 40), a 0.5KG ghee product, and the ÷0 guards.
 

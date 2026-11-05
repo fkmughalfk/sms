@@ -21,8 +21,8 @@ export interface LineResult {
 export function calcLine(line: LineInput): LineResult {
   const packWeight = dec(line.packWeightKg);
   const ratePerPack = dec(line.rate40Kg).div(40).times(packWeight); // G = F/40*E
-  // H = ROUND(G*D, 0) — from the unrounded rate/pack
-  const amount = ratePerPack.times(line.qtyPacks).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+  // H = ROUND(G*D, 0) from the unrounded rate/pack; a half rupee rounds DOWN (owner, 2026-11-05)
+  const amount = ratePerPack.times(line.qtyPacks).toDecimalPlaces(0, Decimal.ROUND_HALF_DOWN);
   const commission = amount.times(line.commissionRate); // I = H * rate (not rounded)
   const weightKg = packWeight.times(line.qtyPacks); // J = D*E
 

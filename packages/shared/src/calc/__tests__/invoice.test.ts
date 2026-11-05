@@ -28,7 +28,7 @@ describe('golden test — invoice #15 (spec §6.4)', () => {
   const expected = [
     { ratePerPack: '5000', amount: '150000', commission: '525', weightKg: '750' },
     { ratePerPack: '10156.25', amount: '203125', commission: '710.9375', weightKg: '500' },
-    { ratePerPack: '6406.25', amount: '192188', commission: '672.658', weightKg: '750' },
+    { ratePerPack: '6406.25', amount: '192187', commission: '672.6545', weightKg: '750' },
     { ratePerPack: '5250', amount: '105000', commission: '367.5', weightKg: '500' },
     { ratePerPack: '6218.75', amount: '621875', commission: '2176.5625', weightKg: '2500' },
   ];
@@ -41,19 +41,34 @@ describe('golden test — invoice #15 (spec §6.4)', () => {
     expect(r.weightKg.toString()).toBe(exp.weightKg);
   });
 
-  it('rounds 192,187.5 half up to 192,188', () => {
-    expect(calcLine(lines[2]!).amount.toString()).toBe('192188');
+  it('rounds 192,187.5 half down to 192,187 (owner, 2026-11-05)', () => {
+    expect(calcLine(lines[2]!).amount.toString()).toBe('192187');
   });
 
-  it('totals: 200 bags / 1,272,188 / 4,452.658 / 5,000 KG', () => {
+  it('totals: 200 bags / 1,272,187 / 4,452.6545 / 5,000 KG', () => {
     const { totals } = calcInvoice(lines);
     expect(totals.totalPacks).toBe(200);
-    expect(totals.totalAmount.toString()).toBe('1272188');
-    expect(totals.totalCommission.toString()).toBe('4452.658');
+    expect(totals.totalAmount.toString()).toBe('1272187');
+    expect(totals.totalCommission.toString()).toBe('4452.6545');
     expect(totals.totalWeightKg.toString()).toBe('5000');
     expect(totals.tons.toString()).toBe('5');
-    expect(totals.avgPerTon.toString()).toBe('254437.6');
+    expect(totals.avgPerTon.toString()).toBe('254437.4');
     expect(totals.avgPerPack.toString()).toBe('6360.94');
+  });
+});
+
+describe('calcLine — half-rupee rounding', () => {
+  const line = (rate40Kg: string) =>
+    calcLine({ qtyPacks: 1, packWeightKg: 40, rate40Kg, commissionRate: RATE }).amount.toString();
+
+  it('a half rupee rounds down', () => {
+    expect(line('12812.5')).toBe('12812');
+    expect(line('10312.5')).toBe('10312');
+  });
+
+  it('more than a half rupee rounds up, less rounds down', () => {
+    expect(line('12812.51')).toBe('12813');
+    expect(line('12812.49')).toBe('12812');
   });
 });
 

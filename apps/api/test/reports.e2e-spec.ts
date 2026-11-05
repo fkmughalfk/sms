@@ -8,15 +8,15 @@ type Agent = ReturnType<typeof request.agent>;
  * Hand-worked dashboard (spec §13 phase 6). Fiscal year = calendar 2026 (start month 1).
  * Annual target 12,000,000 → monthly 1,000,000.
  *
- *   #15  2026-09-02  Pak Rice Traders  Dina     Farhan  golden: 1,272,188 · comm 4,452.658 · 200 bags · 5,000 KG
+ *   #15  2026-09-02  Pak Rice Traders  Dina     Farhan  golden: 1,272,187 · comm 4,452.6545 · 200 bags · 5,000 KG
  *   #16  2026-10-01  Tayyab Traders    Chakwal  Ali     Rice 10 × 40 KG @5,000: 50,000 · comm 250 · 10 bags · 400 KG
  *   #19  2026-09-15  Tayyab Traders    —        —       (by USER) Masar 2 × 25 KG: 10,000 · comm 35 · 2 bags · 50 KG
  *   #17  2025-12-31  outside the fiscal year → excluded
  *   #18  2026-09-20  deleted → excluded
- *   Payments: PRT 272,188 (2026-09-05) · Tayyab 20,000 (2026-10-02) · PRT 1,000 (2025-12-30, excluded)
+ *   Payments: PRT 272,187 (2026-09-05) · Tayyab 20,000 (2026-10-02) · PRT 1,000 (2025-12-30, excluded)
  *
- *   Revenue 1,332,188 · Commission 4,737.658 · 212 bags · 5,450 KG (5.45 t) · 3 invoices
- *   Recovered 292,188 · Outstanding 1,040,000 · Remaining to target 10,667,812
+ *   Revenue 1,332,187 · Commission 4,737.6545 · 212 bags · 5,450 KG (5.45 t) · 3 invoices
+ *   Recovered 292,187 · Outstanding 1,040,000 · Remaining to target 10,667,813
  */
 describe('reports & dashboard (e2e)', () => {
   let t: TestApp;
@@ -118,7 +118,7 @@ describe('reports & dashboard (e2e)', () => {
     await as.ADMIN.delete(`/api/v1/invoices/${deleted.body.id}`).expect(204);
 
     const pay = (body: object) => as.ADMIN.post('/api/v1/payments').send(body).expect(201);
-    await pay({ paymentDate: '2026-09-05', partyId: ids.prt, amount: '272188' });
+    await pay({ paymentDate: '2026-09-05', partyId: ids.prt, amount: '272187' });
     await pay({ paymentDate: '2026-10-02', partyId: ids.tayyab, amount: '20000' });
     await pay({ paymentDate: '2025-12-30', partyId: ids.prt, amount: '1000' });
   });
@@ -131,27 +131,27 @@ describe('reports & dashboard (e2e)', () => {
       period: { from: '2026-01-01', to: '2026-12-31' },
       scoped: false,
       kpis: {
-        revenue: '1332188',
-        commission: '4737.658',
+        revenue: '1332187',
+        commission: '4737.6545',
         commissionPct: expect.stringMatching(/^0\.003556/),
         weightKg: '5450',
         tons: '5.45',
         invoices: 3,
         packs: 212,
-        avgPerTon: '244438.17', // 1,332,188 ÷ 5.45
-        avgPerPack: '6283.91', // 1,332,188 ÷ 212
+        avgPerTon: '244437.98', // 1,332,187 ÷ 5.45
+        avgPerPack: '6283.9', // 1,332,187 ÷ 212
       },
       target: {
         annualTarget: '12000000',
-        actual: '1332188',
-        achieved: expect.stringMatching(/^0\.11101566/),
-        remaining: '10667812',
+        actual: '1332187',
+        achieved: expect.stringMatching(/^0\.11101558/),
+        remaining: '10667813',
         monthlyTarget: '1000000',
       },
       recovery: {
-        recovered: '292188',
+        recovered: '292187',
         outstanding: '1040000',
-        recoveryRate: expect.stringMatching(/^0\.219329/), // 292,188 ÷ 1,332,188
+        recoveryRate: expect.stringMatching(/^0\.219328/), // 292,187 ÷ 1,332,187
         payments: 2,
       },
     });
@@ -183,8 +183,8 @@ describe('reports & dashboard (e2e)', () => {
         name: 'Pulses',
         packs: 202,
         weightKg: '5050',
-        amount: '1282188',
-        commission: '4487.658',
+        amount: '1282187',
+        commission: '4487.6545',
         pctOfSales: expect.stringMatching(/^0\.96246/),
       },
       {
@@ -200,22 +200,22 @@ describe('reports & dashboard (e2e)', () => {
     expect(res.body.totals).toEqual({
       packs: 212,
       weightKg: '5450',
-      amount: '1332188',
-      commission: '4737.658',
+      amount: '1332187',
+      commission: '4737.6545',
     });
   });
 
   it('sales by salesperson and by city include an "unassigned" bucket', async () => {
     const asm = await as.ADMIN.get(`/api/v1/reports/by-salesperson?${FY}`).expect(200);
     expect(asm.body.data.map((r: { name: string; amount: string }) => [r.name, r.amount])).toEqual([
-      ['Farhan Khalid', '1272188'],
+      ['Farhan Khalid', '1272187'],
       ['Ali', '50000'],
       ['Unassigned', '10000'],
     ]);
     const city = await as.ADMIN.get(`/api/v1/reports/by-city?${FY}`).expect(200);
     expect(city.body.data.map((r: { name: string; amount: string }) => [r.name, r.amount])).toEqual(
       [
-        ['Dina', '1272188'],
+        ['Dina', '1272187'],
         ['Chakwal', '50000'],
         ['No city', '10000'],
       ],
@@ -234,7 +234,7 @@ describe('reports & dashboard (e2e)', () => {
     ).toEqual([
       ['DAAL CHANNA SUPREME 25KG', '621875', 100, 'Pulses'],
       ['DAAL MASH CHARI 25KG', '203125', 20, 'Pulses'],
-      ['DAAL MOONG 25KG', '192188', 30, 'Pulses'],
+      ['DAAL MOONG 25KG', '192187', 30, 'Pulses'],
       ['MASAR SABIT 25KG', '160000', 32, 'Pulses'], // 150,000 on #15 + 10,000 on #19
       ['DALL MASOOR 25KG', '105000', 20, 'Pulses'],
       ['ZAFARANI 10KG x 4', '50000', 10, 'Rice'],
@@ -252,10 +252,10 @@ describe('reports & dashboard (e2e)', () => {
         r.lastPaymentDate,
       ]),
     ).toEqual([
-      ['Pak Rice Traders', '1272188', '272188', '1000000', '2026-09-05'],
+      ['Pak Rice Traders', '1272187', '272187', '1000000', '2026-09-05'],
       ['Tayyab Traders', '60000', '20000', '40000', '2026-10-02'],
     ]);
-    expect(res.body.recoveryTotals).toEqual({ recovered: '292188', outstanding: '1040000' });
+    expect(res.body.recoveryTotals).toEqual({ recovered: '292187', outstanding: '1040000' });
   });
 
   it('monthly trend is zero-filled; daily trend covers each day', async () => {
@@ -265,8 +265,8 @@ describe('reports & dashboard (e2e)', () => {
     const sep = month.body.points.find((p: { period: string }) => p.period === '2026-09');
     expect(sep).toEqual({
       period: '2026-09',
-      amount: '1282188',
-      commission: '4487.658',
+      amount: '1282187',
+      commission: '4487.6545',
       weightKg: '5050',
       packs: 202,
       invoices: 2,
@@ -282,7 +282,7 @@ describe('reports & dashboard (e2e)', () => {
       day.body.points.map((p: { period: string; amount: string }) => [p.period, p.amount]),
     ).toEqual([
       ['2026-09-01', '0'],
-      ['2026-09-02', '1272188'],
+      ['2026-09-02', '1272187'],
       ['2026-09-03', '0'],
       ['2026-09-04', '0'],
       ['2026-09-05', '0'],

@@ -16,40 +16,40 @@ Each block has a title on a black bar with white bold text. Each field is a labe
 
 **Left: "Customer 's Detail"**
 
-| Field |
-|---|
-| Name |
-| Sub Party |
-| Address |
-| City |
-| Contact |
+| Field        |
+| ------------ |
+| Name         |
+| Sub Party    |
+| Address      |
+| City         |
+| Contact      |
 | G.S.T NUMBER |
 
 **Right: "Invoice Detail"** (values are centred on the line)
 
-| Field |
-|---|
-| Invoice No. |
+| Field                       |
+| --------------------------- |
+| Invoice No.                 |
 | Invoice Date (`DD/MM/YYYY`) |
-| D.o.No. |
-| Vehicle No |
-| DC No |
-| Ntn/Cnic |
-| OGP No. |
-| Booking No. |
+| D.o.No.                     |
+| Vehicle No                  |
+| DC No                       |
+| Ntn/Cnic                    |
+| OGP No.                     |
+| Booking No.                 |
 
 ## 3. Line-items table (full width, bordered grid)
 
-| Column | Align | Format |
-|---|---|---|
-| Sr. No. | centre | 1, 2, 3… |
-| Description | left, wraps to 2 lines | product name |
-| CropYear | centre | `YYYY-YYYY` |
-| Qty | right | integer (bags) |
-| Rate 40Kg | right | thousands separator, no decimals |
-| Bag Rate | right | 2 decimals, no separator (= Rate 40Kg ÷ 40 × pack weight) |
-| Weight | right | kg (= Qty × pack weight) |
-| AMOUNT | right | thousands separator, no decimals |
+| Column      | Align                  | Format                                                    |
+| ----------- | ---------------------- | --------------------------------------------------------- |
+| Sr. No.     | centre                 | 1, 2, 3…                                                  |
+| Description | left, wraps to 2 lines | product name                                              |
+| CropYear    | centre                 | `YYYY-YYYY`                                               |
+| Qty         | right                  | integer (bags)                                            |
+| Rate 40Kg   | right                  | thousands separator, no decimals                          |
+| Bag Rate    | right                  | 2 decimals, no separator (= Rate 40Kg ÷ 40 × pack weight) |
+| Weight      | right                  | kg (= Qty × pack weight)                                  |
+| AMOUNT      | right                  | thousands separator, no decimals                          |
 
 Headers are bold and centred. One blank row closes the table on the last items page.
 
@@ -63,7 +63,7 @@ Headers are bold and centred. One blank row closes the table on the last items p
   4. Less-Freight
   5. (empty space)
   6. **Net payable**: whole row has a light-green fill, bold = Value − Less-Freight
-- Bottom-left: boxed **Note**, italic: *"any issue and ambiguity in the aforesaid invoice are accepted within 7 days after issuing the invoice."*
+- Bottom-left: boxed **Note**, italic: _"any issue and ambiguity in the aforesaid invoice are accepted within 7 days after issuing the invoice."_
 - Full-width row: **Rupees :** followed by the amount in words, e.g. `Rupees (two hundred twenty-one thousand three hundred eleven) / Only.`
 
 ## 5. Signatures (bottom of every page)
@@ -76,6 +76,6 @@ Three columns, each a name above a line with a bold caption below: **Prepared By
 - Later pages continue the line table with no letterhead or headers repeated.
 - The totals area, the note, the amount in words and the signatures repeat at the bottom of **every** page, always showing the grand totals.
 
-## 7. Open question: line rounding
+## 7. Line rounding
 
-In the sample, half-rupee amounts round **down/to even** (12,812.5 → 12,812; 10,312.5 → 10,312). This differs from the system rule `ROUND_HALF_UP` (CLAUDE.md rule 3), which would print 12,813. Confirm which one the printout should follow before the print view is built.
+A half rupee rounds **down** (owner's decision, 2026-11-05): 12,812.5 → 12,812 and 10,312.5 → 10,312. Anything above half rounds up. This is the system-wide rule (CLAUDE.md rule 3), so the printout shows the stored amounts unchanged.

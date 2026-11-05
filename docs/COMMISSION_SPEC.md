@@ -47,7 +47,7 @@ Changes to existing tables:
 
 - **InvoiceLine**: `commissionRate` / `commission` stay as the **salesman's** share. Add `subPartyCommissionRate` (snapshot, default 0) and `subPartyCommission`.
 - **Invoice**: add `totalSubPartyCommission` next to `totalCommission`.
-- **Groups = categories.** The rates are per Rice / Pulses / Desi Ghee / Spices, so the live app's categories must match those four. The seed file has Rice / Pulses / Other, so ghee and spices may need their own categories. _(Confirm against the live app.)_
+- **Groups = categories.** The live app already has the four categories Rice, Pulses, Desi Ghee and Spices (confirmed by the owner), so rates are set per category.
 
 The snapshot rule stays: rates are copied onto each line when it is saved, so later rate changes only affect new or re-saved invoices. The one-off recalculation below is the deliberate exception.
 
@@ -75,4 +75,3 @@ A SUPER_ADMIN action, **Recalculate commission**:
 ## 7. Needed from the owner
 
 - **Every other salesman's rate per group** (only Farhan's are known).
-- Confirmation that the live categories are Rice / Pulses / Desi Ghee / Spices.

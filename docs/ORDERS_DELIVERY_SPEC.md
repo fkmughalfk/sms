@@ -103,7 +103,7 @@ Changes to existing tables:
 
 - **Invoice**: add `orderId?`, `deliveryId?` (unique), `doNo?`, `vehicleNo?`, `dcNo?`, `ogpNo?`, `bookingNo?`. These are header fields for the print and contain no money. Invoices entered by hand, the way they are today, keep working with these fields left blank.
 - **Invoice**: also snapshot the order's discount terms and the party's credit days at save time (rule 4 style), so later changes don't rewrite history.
-- **Category → discount group**: each category maps to one discount group (Rice, Pulses, Desi Ghee, Spices). _(To confirm against the live app's categories.)_
+- **Category → discount group**: each category is its own discount group; the live app already has Rice, Pulses, Desi Ghee and Spices (confirmed by the owner).
 - **Ledger, recovery, ageing**: Discount credits count as credits, like payments.
 - **InvoiceLine**: add `cropYear?` and `rateBasis` (default PER_40KG, so existing invoices are unchanged). For PER_UNIT lines the rate is the tin or pack price, and ratePerPack = rate × pack pcs; for PER_40KG lines nothing changes. **This touches the shared invoice calc and the invoice form, so it gets its own tests**, and the golden test must still pass.
 - **Products**: the list has items the product master lacks (e.g. Hazara B-2 40 kg). The office adds them as products before they appear on a rate list.
@@ -154,7 +154,6 @@ You chose to give warehouse staff the existing **USER** login. New permissions:
 ## 7. Still open
 
 - **D.O., DC and OGP numbering:** the owner will send invoice PDFs; the numbering (automatic or typed) will be decided from them before phase O4.
-- **Discount groups:** confirm how the live app's categories map to Rice / Pulses / Desi Ghee / Spices (before O7).
 
 ## 8. Owner's answers (2026-11-05)
 

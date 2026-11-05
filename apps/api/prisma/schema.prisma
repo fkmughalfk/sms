@@ -53,15 +53,17 @@ model Setting {
   fiscalYearStartMonth  Int      @default(1)
   userEditWindowHours   Int      @default(24)
   defaultCreditDays     Int      @default(30) // parties without their own credit days
+  firstOrderNo          Int      @default(1) // orders numbered from here (orders module)
   updatedAt             DateTime @updatedAt
 }
 
 model Category {
-  id             String    @id @default(cuid())
-  name           String    @unique @db.Citext
-  commissionRate Decimal?  @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
-  isActive       Boolean   @default(true)
+  id             String          @id @default(cuid())
+  name           String          @unique @db.Citext
+  commissionRate Decimal?        @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
+  isActive       Boolean         @default(true)
   products       Product[]
+  orderDiscounts OrderDiscount[]
 }
 
 model Product {
@@ -76,6 +78,7 @@ model Product {
   isActive       Boolean        @default(true)
   lines          InvoiceLine[]
   rateListItems  RateListItem[]
+  orderLines     OrderLine[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 }
@@ -86,6 +89,7 @@ model City {
   isActive Boolean   @default(true)
   parties  Party[]
   invoices Invoice[]
+  orders   Order[]
 }
 
 model Party {
@@ -103,6 +107,7 @@ model Party {
   subParties     SubParty[]
   invoices       Invoice[]
   payments       Payment[]
+  orders         Order[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 }
@@ -115,6 +120,7 @@ model SubParty {
   isActive Boolean   @default(true)
   invoices Invoice[]
   payments Payment[]
+  orders   Order[]
 
   @@unique([name, partyId])
 }
@@ -127,6 +133,7 @@ model Salesperson {
   invoices Invoice[]
   users    User[]
   parties  Party[]
+  orders   Order[]
 }
 
 model Bank {
@@ -235,6 +242,7 @@ model RateList {
   effectiveFrom DateTime       @unique
   remarks       String?
   items         RateListItem[]
+  orders        Order[]
   createdById   String
   updatedById   String?
   createdAt     DateTime       @default(now())
@@ -256,4 +264,85 @@ model RateListItem {
 
   @@unique([rateListId, productId, cropYear])
   @@index([productId])
+}
+
+// ── Orders (docs/ORDERS_DELIVERY_SPEC.md §3) ──
+
+enum OrderStatus {
+  SUBMITTED // a salesman's order, waiting for the office
+  PENDING // approved or entered by the office; waiting to be invoiced
+  REJECTED
+  CANCELLED
+  CLOSED // closed by the office with bags still pending
+}
+
+model Order {
+  id            String          @id @default(cuid())
+  orderNo       Int             @unique
+  orderDate     DateTime        @db.Date
+  status        OrderStatus
+  partyId       String
+  party         Party           @relation(fields: [partyId], references: [id])
+  subPartyId    String?
+  subParty      SubParty?       @relation(fields: [subPartyId], references: [id])
+  cityId        String?
+  city          City?           @relation(fields: [cityId], references: [id])
+  salespersonId String?
+  salesperson   Salesperson?    @relation(fields: [salespersonId], references: [id])
+  rateListId    String? // the list its rates were booked from
+  rateList      RateList?       @relation(fields: [rateListId], references: [id])
+  remarks       String?
+  statusReason  String? // why it was rejected / cancelled / closed
+  reviewedById  String?
+  reviewedAt    DateTime?
+  totalPacks    Int             @default(0)
+  totalWeightKg Decimal         @default(0) @db.Decimal(14, 3)
+  totalAmount   Decimal         @default(0) @db.Decimal(18, 2)
+  lines         OrderLine[]
+  discounts     OrderDiscount[]
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orderDate])
+  @@index([partyId])
+  @@index([salespersonId])
+  @@index([status])
+}
+
+model OrderLine {
+  id           String    @id @default(cuid())
+  orderId      String
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineNo       Int
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  cropYear     String    @default("")
+  basis        RateBasis
+  listRate     Decimal?  @db.Decimal(14, 2) // the rate list's rate when booked
+  rate         Decimal   @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
+  packWeightKg Decimal   @db.Decimal(10, 3) // snapshot
+  packPcs      Int // snapshot (ghee: tins per carton)
+  qtyPacks     Int
+  ratePerPack  Decimal   @db.Decimal(14, 4)
+  amount       Decimal   @db.Decimal(18, 2)
+  weightKg     Decimal   @db.Decimal(14, 3)
+
+  @@unique([orderId, lineNo])
+  @@index([productId])
+}
+
+/**
+ * Prompt-payment discount agreed on the order: Rs per 40 kg (rice, pulses) or per kg.
+ */
+model OrderDiscount {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  amount     Decimal  @db.Decimal(12, 2)
+
+  @@unique([orderId, categoryId])
 }

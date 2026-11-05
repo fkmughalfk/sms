@@ -2,6 +2,7 @@ import type { Permission } from '@sms/shared';
 import {
   BarChart3,
   Building2,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   type LucideIcon,
@@ -27,6 +28,13 @@ export interface NavItem {
 // Sidebar order from spec §8.
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, ready: true },
+  {
+    label: 'Orders',
+    href: '/orders',
+    icon: ClipboardList,
+    permission: 'order.read',
+    ready: true,
+  },
   {
     label: 'Invoices',
     href: '/invoices',

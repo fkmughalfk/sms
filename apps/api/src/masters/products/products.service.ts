@@ -128,6 +128,7 @@ export class ProductsService extends MasterService<
         'rate list lines',
         await db.rateListItem.count({ where: { productId: id } }),
       ],
+      ['order line', 'order lines', await db.orderLine.count({ where: { productId: id } })],
     ];
   }
 }

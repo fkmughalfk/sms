@@ -23,6 +23,12 @@ export const updateSettingsSchema = z
       .int('Enter whole days.')
       .min(0, 'Enter credit days (0–365).')
       .max(365, 'Enter credit days (0–365).'),
+    /** Orders are numbered from here, or after the highest order no., whichever is higher. */
+    firstOrderNo: z.coerce
+      .number({ error: 'Enter the first order number.' })
+      .int('Enter a whole number.')
+      .min(1, 'Enter the first order number.')
+      .max(99_999_999, 'Enter the first order number.'),
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -37,5 +43,7 @@ export const settingsSchema = z.object({
   userEditWindowHours: z.number(),
   /** Credit days for parties without their own (Phase 2). */
   defaultCreditDays: z.number(),
+  /** Orders module: numbering starts here (e.g. 3211 to continue the paper series). */
+  firstOrderNo: z.number(),
 });
 export type Settings = z.infer<typeof settingsSchema>;

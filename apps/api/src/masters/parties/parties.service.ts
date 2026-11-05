@@ -77,6 +77,7 @@ export class PartiesService extends MasterService<Rec, PartyRow, PartyInput, Par
     return [
       ['invoice', 'invoices', await db.invoice.count({ where: { partyId: id } })],
       ['payment', 'payments', await db.payment.count({ where: { partyId: id } })],
+      ['order', 'orders', await db.order.count({ where: { partyId: id } })],
       ['sub-party', 'sub-parties', await db.subParty.count({ where: { partyId: id } })],
     ];
   }

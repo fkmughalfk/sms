@@ -28,6 +28,7 @@ export class SettingsService {
       fiscalYearStartMonth: s?.fiscalYearStartMonth ?? 1,
       userEditWindowHours: s?.userEditWindowHours ?? 24,
       defaultCreditDays: s?.defaultCreditDays ?? DEFAULT_CREDIT_DAYS,
+      firstOrderNo: s?.firstOrderNo ?? 1,
     };
   }
 

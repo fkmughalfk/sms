@@ -71,6 +71,7 @@ describe('settings & audit log (e2e)', () => {
           fiscalYearStartMonth: '7',
           userEditWindowHours: '48',
           defaultCreditDays: '45',
+          firstOrderNo: '3211',
         })
         .expect(200);
       expect(res.body).toEqual({
@@ -81,6 +82,7 @@ describe('settings & audit log (e2e)', () => {
         fiscalYearStartMonth: 7,
         userEditWindowHours: 48,
         defaultCreditDays: 45,
+        firstOrderNo: 3211,
       });
 
       const after = await as.ADMIN.post('/api/v1/invoices')

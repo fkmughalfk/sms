@@ -26,6 +26,9 @@ export const PERMISSIONS = [
   'audit.view',
   'import.run',
   'rateList.manage',
+  'order.read',
+  'order.create',
+  'order.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -46,6 +49,9 @@ const ADMIN_PERMISSIONS: readonly Permission[] = [
   'export.excel',
   'audit.view',
   'rateList.manage',
+  'order.read',
+  'order.create',
+  'order.manage',
 ];
 
 export const ROLE_PERMISSIONS: Readonly<Record<Role, ReadonlySet<Permission>>> = {
@@ -64,6 +70,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<Role, ReadonlySet<Permission>>> =
     'payment.read',
     'payment.create',
     'reports.viewOwn',
+    'order.read',
+    'order.create',
   ]),
 };
 

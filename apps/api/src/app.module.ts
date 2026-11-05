@@ -12,6 +12,7 @@ import { HealthModule } from './health/health.module';
 import { ImportModule } from './import/import.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
+import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RateListsModule } from './rate-lists/rate-lists.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     MastersModule,
     RateListsModule,
+    OrdersModule,
     InvoicesModule,
     PaymentsModule,
     RecoveryModule,

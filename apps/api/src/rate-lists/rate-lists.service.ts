@@ -415,6 +415,12 @@ export class RateListsService {
   async remove(user: AuthUser, id: string, ip: string | null): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const before = await this.get(id, tx);
+      const orders = await tx.order.count({ where: { rateListId: id } });
+      if (orders > 0) {
+        throw new ConflictException(
+          `${orders.toLocaleString('en-US')} order(s) were booked from this list, so it can't be deleted. Publish a new list instead.`,
+        );
+      }
       await tx.rateList.delete({ where: { id } });
       await this.audit.log(
         { userId: user.id, action: 'DELETE', entity: 'RateList', entityId: id, before, ip },

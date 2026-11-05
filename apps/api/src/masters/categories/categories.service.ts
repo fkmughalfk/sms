@@ -23,6 +23,13 @@ export class CategoriesService extends MasterService<Rec, CategoryRow, CategoryI
   }
 
   protected async usage(db: Db, id: string): Promise<Usage[]> {
-    return [['product', 'products', await db.product.count({ where: { categoryId: id } })]];
+    return [
+      ['product', 'products', await db.product.count({ where: { categoryId: id } })],
+      [
+        'order discount',
+        'order discounts',
+        await db.orderDiscount.count({ where: { categoryId: id } }),
+      ],
+    ];
   }
 }

@@ -22,15 +22,15 @@ There are no dispatch or warehouse screens: the vehicle, D.O., DC and OGP number
 
 ### Order statuses
 
-| Status               | Meaning                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| Draft                | Being written; only its author sees it                     |
-| Submitted            | Waiting for office approval                                |
-| Pending              | Approved; nothing invoiced yet                             |
-| Part delivered       | Some bags invoiced, some still pending                     |
-| Completed            | Every bag invoiced                                         |
-| Closed short         | Office closed it with bags still pending (reason required) |
-| Rejected / Cancelled | Not going ahead (reason required)                          |
+| Status               | Meaning                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| Draft                | Being written; only its author sees it                       |
+| Submitted            | Waiting for office approval (salesmen's orders only)         |
+| Pending              | Saved by the office/owner, or approved; nothing invoiced yet |
+| Part delivered       | Some bags invoiced, some still pending                       |
+| Completed            | Every bag invoiced                                           |
+| Closed short         | Office closed it with bags still pending (reason required)   |
+| Rejected / Cancelled | Not going ahead (reason required)                            |
 
 ## 2. Rate lists (market rates)
 
@@ -49,10 +49,10 @@ Rates move with the market, sometimes daily and sometimes weekly, so they are ke
 ## 3. Orders
 
 - **Booked by** salesmen (their own logins, on a phone) and by the office.
-- **Order number** is assigned by the system. It continues the current series (last used: **3210**), and the starting number is set at go-live.
+- **Order number** is assigned by the system: **one series for all categories** (rice, pulses, ghee, spices). It continues the current series (last used: **3210**), and the starting number is set at go-live.
 - **One order, many lines.** Each line is product + pack size + **crop year** + bags, at the **booked rate** taken from the current rate list. The booked rate stays even if the market moves, and the office may change it during approval (audited).
-- **Ghee is ordered by the carton** (6 × 1 kg or 12 × 500 g). Carton price = tin price × tins per carton. Reports also show tins and kg.
-- **Approval:** the office approves or rejects, seeing the same credit warnings as the invoice form (overdue, over limit; warn only).
+- **Ghee is ordered in whole cartons** (6 × 1 kg or 12 × 500 g); loose tins are not allowed. When opening data or reports count tins, the system converts (60 tins of 1 kg = 10 cartons). Carton price = tin price × tins per carton. Reports also show tins and kg.
+- **Approval (salesmen's orders only):** orders entered by the owner or office go **straight to Pending**. Orders entered by a salesman wait for the office to approve or reject them, seeing the same credit warnings as the invoice form (overdue, over limit; warn only).
 - Each order also carries the agreed **prompt-payment discount per category** (§6).
 
 ## 4. Reading invoice PDFs
@@ -98,11 +98,12 @@ The discount is **not** taken off the invoice. It is a reward for paying on time
 
 - Each party has **credit days** (already in the main app: most 30, some 40).
 - Each order carries an agreed **discount per category**: rice and pulses in Rs per 40 kg; desi ghee and spices in Rs per kg. Invoices matched to the order take these terms.
-- If the party **clears the invoice within its credit days** (invoice date + credit days, oldest-debt-first as in `calc/ageing.ts`), it earns:
+- If the party clears the **whole invoice** within its credit days (part on time and part late earns **nothing**) (invoice date + credit days, oldest-debt-first as in `calc/ageing.ts`), it earns:
   - for **rice and pulses**: the discount per 40 kg ÷ 40 × the line's weight in kg;
   - for **desi ghee and spices**: the discount per kg × the line's weight in kg;
   - added up over the invoice's lines, in whole rupees, with half a rupee rounding down.
-- The discount is **credited in the party's ledger** as a _Discount_ entry next to invoices and payments, reducing outstanding. The office posts each one from an "earned discounts" list (one click, editable, audited).
+- The discount is **credited in the party's ledger automatically** as a _Discount_ entry the moment the invoice is cleared within its credit days, reducing outstanding. It is audited, and the office can reverse it (with a reason).
+- If a payment that cleared the invoice is later deleted or changed so the invoice is no longer cleared in time, the automatic discount is reversed too.
 
 ## 7. Pending orders report
 
@@ -140,7 +141,7 @@ NameAlias         id, kind (PRODUCT | PARTY | SALESPERSON | SUBPARTY), text (nor
                   packKg?, targetId        @@unique(kind, text, packKg)
 
 DiscountCredit    id, partyId, invoiceId @unique, creditDate, amount Decimal(18,2),
-                  computedAmount, remarks, createdById, timestamps
+                  computedAmount, isAutomatic, reversedAt?, reversedReason?, remarks, timestamps
 ```
 
 Changes to existing tables:
@@ -154,15 +155,15 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 
 ## 9. Who can do what
 
-| Permission                                          | SUPER_ADMIN | ADMIN  | USER (salesman) |
-| --------------------------------------------------- | :---------: | :----: | :-------------: |
-| View rate lists                                     |     ✅      |   ✅   |       ✅        |
-| Manage rate lists                                   |     ✅      |   ✅   |       ❌        |
-| Book & submit orders                                |     ✅      |   ✅   |    ✅ (own)     |
-| Edit own order before approval                      |     ✅      |   ✅   |       ✅        |
-| Approve / reject / close orders, change rates       |     ✅      |   ✅   |       ❌        |
-| Upload invoice / payment PDFs, resolve Needs review |     ✅      |   ✅   |       ❌        |
-| Pending orders report                               |   ✅ all    | ✅ all |   own orders    |
+| Permission                                                     | SUPER_ADMIN | ADMIN  | USER (salesman) |
+| -------------------------------------------------------------- | :---------: | :----: | :-------------: |
+| View rate lists                                                |     ✅      |   ✅   |       ✅        |
+| Manage rate lists                                              |     ✅      |   ✅   |       ❌        |
+| Book & submit orders                                           |     ✅      |   ✅   |    ✅ (own)     |
+| Edit own order before approval                                 |     ✅      |   ✅   |       ✅        |
+| Approve / reject salesmen's orders, close orders, change rates |     ✅      |   ✅   |       ❌        |
+| Upload invoice / payment PDFs, resolve Needs review            |     ✅      |   ✅   |       ❌        |
+| Pending orders report                                          |   ✅ all    | ✅ all |   own orders    |
 
 ## 10. Build plan (one phase per session; lint, typecheck and tests pass before each commit)
 
@@ -184,22 +185,27 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 
 ## 12. Owner's answers (2026-11-05)
 
-| Question                   | Answer                                                                                                                     |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Module location            | Inside the main app, on a branch, not merged until approved                                                                |
-| Language                   | English                                                                                                                    |
-| Who books orders           | **Salesmen (own logins) and office**                                                                                       |
-| Invoices & payments        | **Not typed: read from PDFs** by the system                                                                                |
-| Rate after booking         | **Booked rate** stays                                                                                                      |
-| Ghee & spices basis        | **Per pack (tin)**, as printed on the rate list                                                                            |
-| Ghee quantity              | **By carton**                                                                                                              |
-| Crop year                  | **Per order line**, from the rate list                                                                                     |
-| Discount                   | **Prompt-payment discount** per category, on each order; earned within the party's credit days; **credited in the ledger** |
-| Order number               | **Assigned by the system**                                                                                                 |
-| Stock                      | No stock module; the system **tracks pending orders**                                                                      |
-| Invoice → order matching   | **Same party, product, pack, crop year and rate; oldest order first**                                                      |
-| Report names               | 1121 STEAM = Steam Platinum; ALMEIRAH ST 20 kg = Steam Platinum 20 kg; 1121 SELLA = Sella Golden                           |
-| Ex Mill / Delivered        | **Ignore**                                                                                                                 |
-| D.O. / DC / OGP            | Come from the invoice PDF; no numbering in the system                                                                      |
-| Invoice expenses / freight | Not used (0)                                                                                                               |
-| Go-live data               | **Design only for now**; the owner will supply it later                                                                    |
+| Question                        | Answer                                                                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Module location                 | Inside the main app, on a branch, not merged until approved                                                                |
+| Language                        | English                                                                                                                    |
+| Who books orders                | **Salesmen (own logins) and office**                                                                                       |
+| Invoices & payments             | **Not typed: read from PDFs** by the system                                                                                |
+| Rate after booking              | **Booked rate** stays                                                                                                      |
+| Ghee & spices basis             | **Per pack (tin)**, as printed on the rate list                                                                            |
+| Ghee quantity                   | **By carton**                                                                                                              |
+| Crop year                       | **Per order line**, from the rate list                                                                                     |
+| Discount                        | **Prompt-payment discount** per category, on each order; earned within the party's credit days; **credited in the ledger** |
+| Order number                    | **Assigned by the system**                                                                                                 |
+| Stock                           | No stock module; the system **tracks pending orders**                                                                      |
+| Invoice → order matching        | **Same party, product, pack, crop year and rate; oldest order first**                                                      |
+| Report names                    | 1121 STEAM = Steam Platinum; ALMEIRAH ST 20 kg = Steam Platinum 20 kg; 1121 SELLA = Sella Golden                           |
+| Ex Mill / Delivered             | **Ignore**                                                                                                                 |
+| D.O. / DC / OGP                 | Come from the invoice PDF; no numbering in the system                                                                      |
+| Invoice expenses / freight      | Not used (0)                                                                                                               |
+| Go-live data                    | **Design only for now**; the owner will supply it later                                                                    |
+| Approval                        | **Salesmen's orders only**; owner/office orders go straight to Pending                                                     |
+| Order numbers                   | **One series** for rice, pulses, ghee and spices                                                                           |
+| Ghee quantity                   | **Whole cartons only**                                                                                                     |
+| Discount with part-late payment | **Whole invoice only**: part late = no discount                                                                            |
+| Discount posting                | **Automatic**; office can reverse                                                                                          |

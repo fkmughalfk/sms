@@ -2,7 +2,7 @@
 
 > Status: **proposal, not built.** This changes the main app (commission today is per product/category, default 0.35%). Owner's answers recorded 2026-11-05.
 
-## 1. The rules (from the owner)
+## 1. The rules (from the owner, confirmed 2026-11-05)
 
 1. **Farhan earns on every sale**, whoever the salesman is, at his rate for the line's category:
 
@@ -13,7 +13,7 @@
    | Desi Ghee | 0.35%         |
    | Spices    | 0.35%         |
 
-2. **Arslan Dar's share comes out of Farhan's rate.** On any sale involving Arslan Dar, whether **booked by Arslan Dar as salesman** or **made through sub-party Arslan Dar**, Arslan gets a flat **0.15%** and Farhan keeps the rest. The total stays at Farhan's rate:
+2. **Arslan Dar's share comes out of Farhan's rate.** Arslan earns **only** on sales to **his parties** (parties whose salesman in the Parties master is Arslan Dar, whoever is on the invoice) and on sales **through sub-party Arslan Dar**. On those, Arslan gets a flat **0.15%** and Farhan keeps the rest. The total stays at Farhan's rate:
 
    | Category  | Total | Farhan keeps | Arslan Dar |
    | --------- | ----- | ------------ | ---------- |
@@ -31,7 +31,7 @@
 ## 2. How a line's commission is worked out
 
 1. **Total rate** = the line's category rate for the **overriding earner** (Farhan). If no overriding earner is set up, fall back to today's chain: product override → category rate → default.
-2. **Shares:** go through the active share rules. A rule matches when the line's **salesman** or **sub-party** is the one the rule names. Each matching rule gives its earner a flat rate (Arslan Dar 0.15%) **out of** the total.
+2. **Shares:** go through the active share rules. A rule matches when the invoice's **party belongs to** the named salesman (Party.salespersonId) or the invoice's **sub-party** is the named one. Each matching rule gives its earner a flat rate (Arslan Dar 0.15%) **out of** the total.
 3. **The overriding earner** keeps total − shares, never below 0.
 4. The line stores one row per earner, and the line's `commission` is the total, so existing totals and reports stay correct.
 
@@ -42,7 +42,8 @@ Examples (Rs 100,000 line):
 | Rice, salesman Ali                         | 350    | 0          | 350   |
 | Pulses, salesman Farhan                    | 250    | 0          | 250   |
 | Pulses, salesman Ali, sub-party Arslan Dar | 100    | 150        | 250   |
-| Spices, salesman Arslan Dar                | 200    | 150        | 350   |
+| Spices, party belongs to Arslan Dar        | 200    | 150        | 350   |
+| Rice, party belongs to Ali, no sub-party   | 350    | 0          | 350   |
 
 ## 3. Data model
 
@@ -54,7 +55,7 @@ Salesperson                + earnsOnAllSales Boolean @default(false)    (true fo
                              at most one, enforced by the service)
 
 CommissionShare            id, earnerSalespersonId (Arslan Dar),
-                           matchSalespersonId? (Arslan Dar), matchSubPartyId? (Arslan Dar sub-party),
+                           matchPartySalespersonId? (Arslan Dar: parties assigned to him), matchSubPartyId? (Arslan Dar sub-party),
                            rate Decimal(8,6) (0.0015), isActive
                            (at least one match field required)
 
@@ -63,7 +64,7 @@ InvoiceLineCommission      id, invoiceLineId, salespersonId (the earner), rate D
 ```
 
 - **InvoiceLine** `commissionRate` / `commission` stay as the line **total**, so invoice totals, the dashboard and the golden test keep working.
-- Arslan Dar exists twice: as a **salesman** (for his own bookings and to receive commission) and as a **sub-party** (for Farhan's sales through him). The share rule links both.
+- Arslan Dar exists twice: as a **salesman** (parties are assigned to him, and he receives commission) and as a **sub-party** (for Farhan's sales through him). The share rule links both.
 - The snapshot rule stays: rates are copied when a line is saved. The one-off recalculation below is the deliberate exception.
 
 ## 4. Recalculating all invoices
@@ -76,7 +77,7 @@ A SUPER_ADMIN action, **Recalculate commission**:
 
 ## 5. Screens
 
-- **Salespersons master:** a rate per category, the "earns on all sales" switch (Farhan), and share rules (Arslan Dar 0.15%, matched by salesman and by sub-party).
+- **Salespersons master:** a rate per category, the "earns on all sales" switch (Farhan), and share rules (Arslan Dar 0.15%, matched by his parties and by sub-party).
 - **Invoice form:** shows the total commission and the split per earner.
 - **Commission report:** per earner (Farhan, Arslan Dar) by period, with the lines behind each total; Arslan's own sales and his share of others' sales shown separately.
 
@@ -84,7 +85,8 @@ A SUPER_ADMIN action, **Recalculate commission**:
 
 - The four example rows in §2 give exactly those figures.
 - Pulses via Arslan Dar: Farhan 0.10%, Arslan 0.15%.
-- A sale matching Arslan both as salesman **and** sub-party pays his 0.15% once, not twice.
+- A sale matching Arslan both by party **and** sub-party pays his 0.15% once, not twice.
+- Arslan earns nothing on a sale to someone else's party without sub-party Arslan Dar, even if he is written on the invoice.
 - Recalculation: the dry run changes nothing; the run changes commission only, and amounts are untouched.
 
 ## 7. Open

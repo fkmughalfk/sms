@@ -45,38 +45,44 @@ model RefreshToken {
 }
 
 model Setting {
-  id                    Int      @id @default(1)
-  companyName           String   @default("WAQAR RICE MILLS")
-  companyAddress        String   @default("Shamshad Khan Shaheed Road, Kamoke")
-  defaultCommissionRate Decimal  @default(0.0035) @db.Decimal(8, 6)
-  annualSalesTarget     Decimal  @default(10000000000) @db.Decimal(18, 2)
-  fiscalYearStartMonth  Int      @default(1)
-  userEditWindowHours   Int      @default(24)
-  defaultCreditDays     Int      @default(30) // parties without their own credit days
-  updatedAt             DateTime @updatedAt
+  id                    Int       @id @default(1)
+  companyName           String    @default("WAQAR RICE MILLS")
+  companyAddress        String    @default("Shamshad Khan Shaheed Road, Kamoke")
+  defaultCommissionRate Decimal   @default(0.0035) @db.Decimal(8, 6)
+  annualSalesTarget     Decimal   @default(10000000000) @db.Decimal(18, 2)
+  fiscalYearStartMonth  Int       @default(1)
+  userEditWindowHours   Int       @default(24)
+  defaultCreditDays     Int       @default(30) // parties without their own credit days
+  firstOrderNo          Int       @default(1) // orders numbered from here (orders module)
+  ordersGoLiveDate      DateTime? @db.Date // invoices up to this date don't reduce opening orders
+  updatedAt             DateTime  @updatedAt
 }
 
 model Category {
-  id             String    @id @default(cuid())
-  name           String    @unique @db.Citext
-  commissionRate Decimal?  @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
-  isActive       Boolean   @default(true)
-  products       Product[]
+  id               String                      @id @default(cuid())
+  name             String                      @unique @db.Citext
+  commissionRate   Decimal?                    @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
+  isActive         Boolean                     @default(true)
+  products         Product[]
+  orderDiscounts   OrderDiscount[]
+  salespersonRates SalespersonCommissionRate[]
 }
 
 model Product {
-  id             String        @id @default(cuid())
-  sku            Int           @unique
-  name           String        @unique @db.Citext
-  unitWeightKg   Decimal       @db.Decimal(10, 3)
-  packPcs        Int           @default(1)
+  id             String         @id @default(cuid())
+  sku            Int            @unique
+  name           String         @unique @db.Citext
+  unitWeightKg   Decimal        @db.Decimal(10, 3)
+  packPcs        Int            @default(1)
   categoryId     String
-  category       Category      @relation(fields: [categoryId], references: [id])
-  commissionRate Decimal?      @db.Decimal(8, 6)
-  isActive       Boolean       @default(true)
+  category       Category       @relation(fields: [categoryId], references: [id])
+  commissionRate Decimal?       @db.Decimal(8, 6)
+  isActive       Boolean        @default(true)
   lines          InvoiceLine[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  rateListItems  RateListItem[]
+  orderLines     OrderLine[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model City {
@@ -85,47 +91,59 @@ model City {
   isActive Boolean   @default(true)
   parties  Party[]
   invoices Invoice[]
+  orders   Order[]
 }
 
 model Party {
-  id             String       @id @default(cuid())
-  name           String       @unique @db.Citext
-  cityId         String?
-  city           City?        @relation(fields: [cityId], references: [id])
-  salespersonId  String? // default ASM, pre-fills new invoices
-  salesperson    Salesperson? @relation(fields: [salespersonId], references: [id])
-  phone          String?
-  openingBalance Decimal      @default(0) @db.Decimal(18, 2)
-  creditDays     Int? // null → Setting.defaultCreditDays
-  creditLimit    Decimal?     @db.Decimal(18, 2) // null → no limit (warn only)
-  isActive       Boolean      @default(true)
-  subParties     SubParty[]
-  invoices       Invoice[]
-  payments       Payment[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String           @id @default(cuid())
+  name            String           @unique @db.Citext
+  cityId          String?
+  city            City?            @relation(fields: [cityId], references: [id])
+  salespersonId   String? // default ASM, pre-fills new invoices
+  salesperson     Salesperson?     @relation(fields: [salespersonId], references: [id])
+  phone           String?
+  openingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  creditDays      Int? // null → Setting.defaultCreditDays
+  creditLimit     Decimal?         @db.Decimal(18, 2) // null → no limit (warn only)
+  isActive        Boolean          @default(true)
+  subParties      SubParty[]
+  invoices        Invoice[]
+  payments        Payment[]
+  orders          Order[]
+  discountCredits DiscountCredit[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model SubParty {
-  id       String    @id @default(cuid())
-  name     String    @db.Citext
-  partyId  String?
-  party    Party?    @relation(fields: [partyId], references: [id])
-  isActive Boolean   @default(true)
-  invoices Invoice[]
-  payments Payment[]
+  id               String            @id @default(cuid())
+  name             String            @db.Citext
+  partyId          String?
+  party            Party?            @relation(fields: [partyId], references: [id])
+  isActive         Boolean           @default(true)
+  invoices         Invoice[]
+  payments         Payment[]
+  orders           Order[]
+  commissionShares CommissionShare[]
 
   @@unique([name, partyId])
 }
 
 model Salesperson {
-  id       String    @id @default(cuid())
-  name     String    @unique @db.Citext
-  phone    String?
-  isActive Boolean   @default(true)
-  invoices Invoice[]
-  users    User[]
-  parties  Party[]
+  id              String                      @id @default(cuid())
+  name            String                      @unique @db.Citext
+  phone           String?
+  isActive        Boolean                     @default(true)
+  invoices        Invoice[]
+  users           User[]
+  parties         Party[]
+  orders          Order[]
+  /// Earns commission on every sale at his own category rates (Farhan); at most one.
+  earnsOnAllSales Boolean                     @default(false)
+  commissionRates SalespersonCommissionRate[]
+  sharesEarned    CommissionShare[]           @relation("ShareEarner")
+  sharesMatched   CommissionShare[]           @relation("ShareMatchParty")
+  lineCommissions InvoiceLineCommission[]
 }
 
 model Bank {
@@ -136,28 +154,40 @@ model Bank {
 }
 
 model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNo       Int           @unique
-  invoiceDate     DateTime      @db.Date
+  id              String          @id @default(cuid())
+  invoiceNo       Int             @unique
+  invoiceDate     DateTime        @db.Date
   partyId         String
-  party           Party         @relation(fields: [partyId], references: [id])
+  party           Party           @relation(fields: [partyId], references: [id])
   cityId          String?
-  city            City?         @relation(fields: [cityId], references: [id])
+  city            City?           @relation(fields: [cityId], references: [id])
   subPartyId      String?
-  subParty        SubParty?     @relation(fields: [subPartyId], references: [id])
+  subParty        SubParty?       @relation(fields: [subPartyId], references: [id])
   salespersonId   String?
-  salesperson     Salesperson?  @relation(fields: [salespersonId], references: [id])
+  salesperson     Salesperson?    @relation(fields: [salespersonId], references: [id])
   remarks         String?
-  totalPacks      Int           @default(0)
-  totalWeightKg   Decimal       @default(0) @db.Decimal(14, 3)
-  totalAmount     Decimal       @default(0) @db.Decimal(18, 2)
-  totalCommission Decimal       @default(0) @db.Decimal(18, 4)
+  // From invoice PDFs (phase O4); blank on invoices entered by hand.
+  doNo            String?
+  vehicleNo       String?
+  dcNo            String?
+  ogpNo           String?
+  supplyNote      String? // the PDF's "Sub Party" text, e.g. "SUPPLY FROM U-2"
+  // Prompt-payment discount (phase O6): what this invoice earns if cleared within the
+  // party's credit days (from the orders it delivers), and those credit days, as recorded.
+  promptDiscount  Decimal         @default(0) @db.Decimal(18, 2)
+  creditDays      Int?
+  discountCredit  DiscountCredit?
+  pdfImport       PdfImport?
+  totalPacks      Int             @default(0)
+  totalWeightKg   Decimal         @default(0) @db.Decimal(14, 3)
+  totalAmount     Decimal         @default(0) @db.Decimal(18, 2)
+  totalCommission Decimal         @default(0) @db.Decimal(18, 4)
   lines           InvoiceLine[]
   createdById     String
   updatedById     String?
   deletedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([invoiceDate])
   @@index([partyId])
@@ -165,42 +195,47 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id             String  @id @default(cuid())
+  id             String                  @id @default(cuid())
   invoiceId      String
-  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice        Invoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   lineNo         Int
   productId      String
-  product        Product @relation(fields: [productId], references: [id])
+  product        Product                 @relation(fields: [productId], references: [id])
   qtyPacks       Int
-  rate40Kg       Decimal @db.Decimal(14, 2)
-  packWeightKg   Decimal @db.Decimal(10, 3) // snapshot
-  commissionRate Decimal @db.Decimal(8, 6) // snapshot
-  ratePerPack    Decimal @db.Decimal(14, 4)
-  amount         Decimal @db.Decimal(18, 2)
-  commission     Decimal @db.Decimal(18, 4)
-  weightKg       Decimal @db.Decimal(14, 3)
+  rate40Kg       Decimal                 @db.Decimal(14, 2)
+  packWeightKg   Decimal                 @db.Decimal(10, 3) // snapshot
+  commissionRate Decimal                 @db.Decimal(8, 6) // snapshot
+  ratePerPack    Decimal                 @db.Decimal(14, 4)
+  amount         Decimal                 @db.Decimal(18, 2)
+  commission     Decimal                 @db.Decimal(18, 4)
+  weightKg       Decimal                 @db.Decimal(14, 3)
+  rateBasis      RateBasis               @default(PER_40KG) // PER_UNIT: priced per pack (ghee, spices from PDFs)
+  cropYear       String                  @default("")
+  allocations    OrderAllocation[]
+  commissions    InvoiceLineCommission[]
 
   @@unique([invoiceId, lineNo])
   @@index([productId])
 }
 
 model Payment {
-  id          String    @id @default(cuid())
-  paymentDate DateTime  @db.Date
+  id          String       @id @default(cuid())
+  paymentDate DateTime     @db.Date
   partyId     String
-  party       Party     @relation(fields: [partyId], references: [id])
+  party       Party        @relation(fields: [partyId], references: [id])
   subPartyId  String?
-  subParty    SubParty? @relation(fields: [subPartyId], references: [id])
+  subParty    SubParty?    @relation(fields: [subPartyId], references: [id])
   slipNo      String?
   bankId      String?
-  bank        Bank?     @relation(fields: [bankId], references: [id])
-  amount      Decimal   @db.Decimal(18, 2)
+  bank        Bank?        @relation(fields: [bankId], references: [id])
+  amount      Decimal      @db.Decimal(18, 2)
   remarks     String?
+  slip        PaymentSlip?
   createdById String
   updatedById String?
   deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([paymentDate])
   @@index([partyId])
@@ -219,4 +254,301 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// ── Rate lists (docs/ORDERS_DELIVERY_SPEC.md §2) ──
+// Dated market rates. The current list is the newest one whose effectiveFrom has passed.
+
+enum RateBasis {
+  PER_40KG // rice, pulses
+  PER_UNIT // desi ghee, spices: price of one tin / pack as printed
+}
+
+model RateList {
+  id            String         @id @default(cuid())
+  effectiveFrom DateTime       @unique
+  remarks       String?
+  items         RateListItem[]
+  orders        Order[]
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model RateListItem {
+  id          String    @id @default(cuid())
+  rateListId  String
+  rateList    RateList  @relation(fields: [rateListId], references: [id], onDelete: Cascade)
+  lineNo      Int
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  cropYear    String    @default("") // "2025-2026"; "" = none (keeps the unique key simple)
+  basis       RateBasis
+  rate        Decimal?  @db.Decimal(14, 2) // null when not available (N/A)
+  isAvailable Boolean   @default(true)
+  note        String?
+
+  @@unique([rateListId, productId, cropYear])
+  @@index([productId])
+}
+
+// ── Orders (docs/ORDERS_DELIVERY_SPEC.md §3) ──
+
+enum OrderStatus {
+  SUBMITTED // a salesman's order, waiting for the office
+  PENDING // approved or entered by the office; waiting to be invoiced
+  REJECTED
+  CANCELLED
+  CLOSED // closed by the office with bags still pending
+}
+
+model Order {
+  id            String          @id @default(cuid())
+  orderNo       Int             @unique
+  orderDate     DateTime        @db.Date
+  status        OrderStatus
+  partyId       String
+  party         Party           @relation(fields: [partyId], references: [id])
+  subPartyId    String?
+  subParty      SubParty?       @relation(fields: [subPartyId], references: [id])
+  cityId        String?
+  city          City?           @relation(fields: [cityId], references: [id])
+  salespersonId String?
+  salesperson   Salesperson?    @relation(fields: [salespersonId], references: [id])
+  rateListId    String? // the list its rates were booked from
+  rateList      RateList?       @relation(fields: [rateListId], references: [id])
+  remarks       String?
+  statusReason  String? // why it was rejected / cancelled / closed
+  isOpening     Boolean         @default(false) // loaded at go-live from the old pending report
+  reviewedById  String?
+  reviewedAt    DateTime?
+  totalPacks    Int             @default(0)
+  totalWeightKg Decimal         @default(0) @db.Decimal(14, 3)
+  totalAmount   Decimal         @default(0) @db.Decimal(18, 2)
+  lines         OrderLine[]
+  discounts     OrderDiscount[]
+  createdById   String
+  updatedById   String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([orderDate])
+  @@index([partyId])
+  @@index([salespersonId])
+  @@index([status])
+}
+
+model OrderLine {
+  id                String            @id @default(cuid())
+  orderId           String
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lineNo            Int
+  productId         String
+  product           Product           @relation(fields: [productId], references: [id])
+  cropYear          String            @default("")
+  basis             RateBasis
+  listRate          Decimal?          @db.Decimal(14, 2) // the rate list's rate when booked
+  rate              Decimal           @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
+  packWeightKg      Decimal           @db.Decimal(10, 3) // snapshot
+  packPcs           Int // snapshot (ghee: tins per carton)
+  qtyPacks          Int
+  ratePerPack       Decimal           @db.Decimal(14, 4)
+  amount            Decimal           @db.Decimal(18, 2)
+  weightKg          Decimal           @db.Decimal(14, 3)
+  /// Bags already dispatched before go-live (opening import); invoices add to it from O4.
+  openingDispatched Int               @default(0)
+  allocations       OrderAllocation[]
+
+  @@unique([orderId, lineNo])
+  @@index([productId])
+}
+
+/**
+ * Prompt-payment discount agreed on the order: Rs per 40 kg (rice, pulses) or per kg.
+ */
+model OrderDiscount {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+  amount     Decimal  @db.Decimal(12, 2)
+
+  @@unique([orderId, categoryId])
+}
+
+// ── Names from other software (opening import now, invoice PDFs from O4) ──
+
+enum AliasKind {
+  PRODUCT
+  PARTY
+  SALESPERSON
+}
+
+/**
+ * "1121 STEAM" (25 kg) → Steam Platinum 25 kg; "FARHAN SB" → Farhan Khalid. Decided once, remembered.
+ */
+model NameAlias {
+  id          String    @id @default(cuid())
+  kind        AliasKind
+  text        String // normalised: trimmed, single spaces, upper case
+  packKg      String    @default("") // products only: the pack size the name was seen with
+  targetId    String
+  createdById String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([kind, text, packKg])
+}
+
+/**
+ * How an invoice line delivers pending order lines (phase O4). Deleting the invoice frees the bags.
+ */
+model OrderAllocation {
+  id            String      @id @default(cuid())
+  invoiceLineId String
+  invoiceLine   InvoiceLine @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+  orderLineId   String
+  orderLine     OrderLine   @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  qtyPacks      Int
+
+  @@unique([invoiceLineId, orderLineId])
+  @@index([orderLineId])
+}
+
+enum PdfImportStatus {
+  POSTED // recorded as an invoice
+  NEEDS_REVIEW // waiting for the office
+  DUPLICATE // that invoice number is already recorded
+  FAILED // couldn't be read as an invoice
+}
+
+/**
+ * One uploaded invoice PDF: what was read, what's wrong, and the invoice it became.
+ */
+model PdfImport {
+  id           String          @id @default(cuid())
+  fileName     String
+  fileData     Bytes // the original PDF, kept with the invoice
+  status       PdfImportStatus
+  invoiceNo    Int?
+  parsed       Json // fields and lines as read from the PDF
+  problems     Json // [{ line?, message }]
+  resolution   Json            @default("{}") // the office's decisions (party, products, order)
+  invoiceId    String?         @unique
+  invoice      Invoice?        @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  uploadedById String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status])
+  @@index([invoiceNo])
+}
+
+enum SlipStatus {
+  TO_CONFIRM // a salesman's slip, waiting for the office
+  SAVED // recorded as a payment
+  REJECTED
+}
+
+/**
+ * A bank deposit slip / transfer screenshot behind a payment (phase O5).
+ */
+model PaymentSlip {
+  id           String     @id @default(cuid())
+  fileName     String
+  mimeType     String
+  fileData     Bytes
+  status       SlipStatus
+  partyId      String // chosen by the uploader
+  details      Json // date, amount, bank, reference, depositor, method (as entered / read)
+  paymentId    String?    @unique
+  payment      Payment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  rejectReason String?
+  uploadedById String
+  reviewedById String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+  @@index([uploadedById])
+}
+
+enum DiscountStatus {
+  ACTIVE
+  REVERSED // by the office (with a reason); never re-credited automatically
+}
+
+/**
+ * A prompt-payment discount credited to the party's ledger (phase O6). Kept in step automatically.
+ */
+model DiscountCredit {
+  id             String         @id @default(cuid())
+  partyId        String
+  party          Party          @relation(fields: [partyId], references: [id])
+  invoiceId      String         @unique
+  invoice        Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount         Decimal        @db.Decimal(18, 2)
+  creditDate     DateTime       @db.Date
+  status         DiscountStatus @default(ACTIVE)
+  reversedReason String?
+  reversedById   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([partyId])
+}
+
+// ── Commission (docs/COMMISSION_SPEC.md) ──
+
+/**
+ * A salesman's commission rate for a category (fraction: 0.0035 = 0.35%).
+ */
+model SalespersonCommissionRate {
+  id            String      @id @default(cuid())
+  salespersonId String
+  salesperson   Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rate          Decimal     @db.Decimal(8, 6)
+
+  @@unique([salespersonId, categoryId])
+}
+
+/**
+ * A flat share out of the total (Arslan Dar 0.15%) on sales to a salesman's parties or through a sub-party.
+ */
+model CommissionShare {
+  id                      String       @id @default(cuid())
+  earnerId                String
+  earner                  Salesperson  @relation("ShareEarner", fields: [earnerId], references: [id], onDelete: Cascade)
+  matchPartySalespersonId String?
+  matchPartySalesperson   Salesperson? @relation("ShareMatchParty", fields: [matchPartySalespersonId], references: [id], onDelete: Cascade)
+  matchSubPartyId         String?
+  matchSubParty           SubParty?    @relation(fields: [matchSubPartyId], references: [id], onDelete: Cascade)
+  rate                    Decimal      @db.Decimal(8, 6)
+  sortOrder               Int          @default(0)
+}
+
+enum CommissionBasis {
+  OVERRIDE // the salesman who earns on all sales
+  SHARE // a share rule
+  SALESMAN // the invoice's own salesman (no overriding salesman set)
+}
+
+/**
+ * Who earns what on an invoice line; the rows add up to the line's commission.
+ */
+model InvoiceLineCommission {
+  id            String          @id @default(cuid())
+  invoiceLineId String
+  invoiceLine   InvoiceLine     @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+  salespersonId String
+  salesperson   Salesperson     @relation(fields: [salespersonId], references: [id])
+  basis         CommissionBasis
+  rate          Decimal         @db.Decimal(8, 6)
+  amount        Decimal         @db.Decimal(18, 4)
+
+  @@unique([invoiceLineId, salespersonId])
+  @@index([salespersonId])
 }

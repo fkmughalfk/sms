@@ -24,8 +24,12 @@ import {
   resolveCommissionRate,
   type Totals,
   type BulkResult,
+  type CommissionConfig,
+  commissionTotalRate,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { CommissionService } from '../commission/commission.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { runBulk } from '../common/bulk';
 import { invoiceScope } from '../common/data-scope';
 import { dateRangeWhere } from '../common/db-date';
@@ -63,6 +67,15 @@ interface Snapshot {
 }
 
 type CalculatedLine = InvoiceLineInput & Snapshot & LineResult;
+
+/** Delivery fields read from an invoice PDF (phase O4). */
+export interface PdfHeader {
+  doNo: string | null;
+  vehicleNo: string | null;
+  dcNo: string | null;
+  ogpNo: string | null;
+  supplyNote: string | null;
+}
 
 /** Sortable columns of the Invoices view (`?sort=field:dir`). */
 const INVOICE_SORT: SortColumns = {
@@ -121,6 +134,8 @@ export class InvoicesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
+    private readonly discounts: DiscountsService,
+    private readonly commission: CommissionService,
   ) {}
 
   // ── Queries ──
@@ -291,32 +306,50 @@ export class InvoicesService {
   // ── Writes (one transaction each, with an audit entry — CLAUDE.md rule 7) ──
 
   async create(user: AuthUser, input: InvoiceInput, ip: string | null): Promise<InvoiceDetail> {
-    const id = await this.prisma.$transaction(async (tx) => {
-      await this.assertInvoiceNoFree(tx, input.invoiceNo);
-      const { lines, totals } = await this.calculate(tx, input);
-      const created = await tx.invoice.create({
-        data: {
-          ...this.headerData(input),
-          ...this.totalsData(totals),
-          createdById: user.id,
-          lines: { create: lines.map((l) => this.lineData(l)) },
-        },
-        select: { id: true },
-      });
-      await this.audit.log(
-        {
-          userId: user.id,
-          action: 'CREATE',
-          entity: 'Invoice',
-          entityId: created.id,
-          after: this.auditSnapshot(input, totals),
-          ip,
-        },
-        tx,
-      );
-      return created.id;
-    });
+    const id = await this.prisma.$transaction((tx) => this.createInTx(tx, user, input, ip));
     return this.get(user, id);
+  }
+
+  /**
+   * Creates an invoice inside the caller's transaction (the invoice-PDF reader uses this
+   * so the invoice and the order deliveries are saved together). Returns the new id and
+   * the saved line ids in line order.
+   */
+  async createInTx(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    input: InvoiceInput,
+    ip: string | null,
+    pdf?: PdfHeader,
+  ): Promise<string> {
+    await this.assertInvoiceNoFree(tx, input.invoiceNo);
+    const { lines, totals, commission } = await this.calculate(tx, input);
+    const split = await this.splitter(tx, input, commission);
+    const created = await tx.invoice.create({
+      data: {
+        ...this.headerData(input),
+        ...(pdf ?? {}),
+        ...this.totalsData(totals),
+        createdById: user.id,
+        lines: {
+          create: lines.map((l) => ({ ...this.lineData(l), commissions: { create: split(l) } })),
+        },
+      },
+      select: { id: true },
+    });
+    await this.audit.log(
+      {
+        userId: user.id,
+        action: 'CREATE',
+        entity: 'Invoice',
+        entityId: created.id,
+        after: { ...this.auditSnapshot(input, totals), ...(pdf ? { fromPdf: pdf } : {}) },
+        ip,
+      },
+      tx,
+    );
+    await this.discounts.reconcile(tx, input.partyId, user.id, ip);
+    return created.id;
   }
 
   async update(
@@ -327,10 +360,19 @@ export class InvoicesService {
   ): Promise<InvoiceDetail> {
     await this.prisma.$transaction(async (tx) => {
       const existing = await this.findEditable(tx, user, id);
+      const delivered = await tx.orderAllocation.count({
+        where: { invoiceLine: { invoiceId: id } },
+      });
+      if (delivered > 0) {
+        throw new ConflictException(
+          'This invoice delivered bags of pending orders. To change it, delete it and read its PDF again.',
+        );
+      }
       if (input.invoiceNo !== existing.invoiceNo)
         await this.assertInvoiceNoFree(tx, input.invoiceNo);
 
-      const { lines, totals } = await this.calculate(tx, input, existing);
+      const { lines, totals, commission } = await this.calculate(tx, input, existing);
+      const split = await this.splitter(tx, input, commission);
       await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
       await tx.invoice.update({
         where: { id },
@@ -338,7 +380,9 @@ export class InvoicesService {
           ...this.headerData(input),
           ...this.totalsData(totals),
           updatedById: user.id,
-          lines: { create: lines.map((l) => this.lineData(l)) },
+          lines: {
+            create: lines.map((l) => ({ ...this.lineData(l), commissions: { create: split(l) } })),
+          },
         },
       });
       await this.audit.log(
@@ -361,6 +405,10 @@ export class InvoicesService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, input.partyId, user.id, ip);
+      if (input.partyId !== existing.partyId) {
+        await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
+      }
     });
     return this.get(user, id);
   }
@@ -412,6 +460,7 @@ export class InvoicesService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, inv.partyId, user.id, ip);
     });
   }
 
@@ -476,11 +525,13 @@ export class InvoicesService {
           packPcs: true,
           commissionRate: true,
           isActive: true,
+          categoryId: true,
           category: { select: { commissionRate: true } },
         },
       }),
       this.settings.get(db),
     ]);
+    const commission = await this.commission.config(db);
     const byId = new Map(products.map((p) => [p.id, p]));
 
     // Old snapshots per product, consumed in line order.
@@ -510,10 +561,15 @@ export class InvoicesService {
       }
       const snapshot = oldSnapshots.get(line.productId)?.shift() ?? {
         packWeightKg: packWeightKg(product.unitWeightKg.toString(), product.packPcs).toString(),
-        commissionRate: resolveCommissionRate(
-          product.commissionRate?.toString(),
-          product.category.commissionRate?.toString(),
-          settings.defaultCommissionRate,
+        // The salesman who earns on all sales sets the rate for his categories (commission spec).
+        commissionRate: commissionTotalRate(
+          commission,
+          product.categoryId,
+          resolveCommissionRate(
+            product.commissionRate?.toString(),
+            product.category.commissionRate?.toString(),
+            settings.defaultCommissionRate,
+          ),
         ).toString(),
       };
       return { ...line, ...snapshot };
@@ -523,7 +579,7 @@ export class InvoicesService {
     const productRefs = new Map(
       products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku }]),
     );
-    return { lines, totals, products: productRefs };
+    return { lines, totals, products: productRefs, commission };
   }
 
   private async assertHeaderRefs(db: Db, input: InvoiceInput, existing?: ExistingInvoice) {
@@ -601,12 +657,30 @@ export class InvoicesService {
     };
   }
 
+  /** Who earns what on each line (commission spec §2), from the invoice's party and sub-party. */
+  private async splitter(db: Db, input: InvoiceInput, config: CommissionConfig) {
+    const party = await db.party.findUnique({
+      where: { id: input.partyId },
+      select: { salespersonId: true },
+    });
+    return (l: CalculatedLine) =>
+      this.commission.rows(config, {
+        amount: l.amount.toString(),
+        totalRate: l.commissionRate,
+        partySalespersonId: party?.salespersonId ?? null,
+        subPartyId: input.subPartyId,
+        invoiceSalespersonId: input.salespersonId,
+      });
+  }
+
   private lineData(l: CalculatedLine) {
     return {
       lineNo: l.lineNo,
       productId: l.productId,
       qtyPacks: l.qtyPacks,
       rate40Kg: l.rate40Kg,
+      rateBasis: l.rateBasis ?? 'PER_40KG',
+      cropYear: l.cropYear ?? '',
       packWeightKg: l.packWeightKg,
       commissionRate: l.commissionRate,
       ratePerPack: l.ratePerPack.toString(),

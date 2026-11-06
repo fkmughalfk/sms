@@ -43,3 +43,19 @@ describe('buildLedger', () => {
     expect(buildLedger('2500.75', []).closingBalance.toString()).toBe('2500.75');
   });
 });
+
+describe('buildLedger with prompt-payment discounts', () => {
+  it('a discount is a credit, after the same-day payment', () => {
+    const l = buildLedger('0', [
+      { date: '2026-11-20', type: 'DISCOUNT', sortKey: 'z', amount: '1000' },
+      { date: '2026-11-01', type: 'INVOICE', sortKey: '1', amount: '100000' },
+      { date: '2026-11-20', type: 'PAYMENT', sortKey: 'a', amount: '99000' },
+    ]);
+    expect(l.rows.map((r) => [r.item.type, r.balance.toString()])).toEqual([
+      ['INVOICE', '100000'],
+      ['PAYMENT', '1000'],
+      ['DISCOUNT', '0'],
+    ]);
+    expect(l.totalCredit.toString()).toBe('100000');
+  });
+});

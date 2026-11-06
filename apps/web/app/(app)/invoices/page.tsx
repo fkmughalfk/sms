@@ -16,7 +16,18 @@ import {
   productOptionSchema,
 } from '@sms/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Copy, Download, Eye, FileText, Pencil, Plus, Printer, Trash2, X } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Eye,
+  FileText,
+  FileUp,
+  Pencil,
+  Plus,
+  Printer,
+  Trash2,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -174,6 +185,13 @@ export default function InvoicesPage() {
           {can('export.excel') && (
             <Button variant="outline" onClick={exportExcel} disabled={exporting}>
               <Download /> {exporting ? 'Exporting…' : 'Export'}
+            </Button>
+          )}
+          {can('invoicePdf.import') && (
+            <Button asChild variant="outline">
+              <Link href="/invoices/pdfs">
+                <FileUp /> Read PDFs
+              </Link>
             </Button>
           )}
           {can('invoice.create') && (

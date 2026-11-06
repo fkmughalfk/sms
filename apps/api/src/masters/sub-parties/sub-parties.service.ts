@@ -69,6 +69,7 @@ export class SubPartiesService extends MasterService<
     return [
       ['invoice', 'invoices', await db.invoice.count({ where: { subPartyId: id } })],
       ['payment', 'payments', await db.payment.count({ where: { subPartyId: id } })],
+      ['order', 'orders', await db.order.count({ where: { subPartyId: id } })],
     ];
   }
 }

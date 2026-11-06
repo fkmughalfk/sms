@@ -7,7 +7,7 @@ import {
   settingsSchema,
   updateSettingsSchema,
 } from '@sms/shared';
-import { SlidersHorizontal, Building2, Clock, Target } from 'lucide-react';
+import { SlidersHorizontal, Building2, ClipboardList, Clock, Target } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -50,6 +50,8 @@ interface FormValues {
   fiscalYearStartMonth: string;
   userEditWindowHours: string;
   defaultCreditDays: string;
+  firstOrderNo: string;
+  ordersGoLiveDate: string;
 }
 
 const toForm = (s: Settings): FormValues => ({
@@ -60,6 +62,8 @@ const toForm = (s: Settings): FormValues => ({
   fiscalYearStartMonth: String(s.fiscalYearStartMonth),
   userEditWindowHours: String(s.userEditWindowHours),
   defaultCreditDays: String(s.defaultCreditDays),
+  firstOrderNo: String(s.firstOrderNo),
+  ordersGoLiveDate: s.ordersGoLiveDate ?? '',
 });
 
 /** Spec §5.8 — SUPER_ADMIN only (the layout blocks other roles). */
@@ -104,6 +108,8 @@ function SettingsForm({ settings }: { settings: Settings }) {
       fiscalYearStartMonth: v.fiscalYearStartMonth,
       userEditWindowHours: v.userEditWindowHours,
       defaultCreditDays: v.defaultCreditDays,
+      firstOrderNo: v.firstOrderNo,
+      ordersGoLiveDate: v.ordersGoLiveDate,
     };
     const parsed = updateSettingsSchema.safeParse(body);
     const map = new Map<string, string>();
@@ -233,6 +239,27 @@ function SettingsForm({ settings }: { settings: Settings }) {
             An unpaid invoice older than this is overdue. A party can have its own credit days and
             credit limit (Masters → Parties). Overdue and over-limit parties are warned about on new
             invoices — saving is never blocked.
+          </p>
+        </FormSection>
+
+        <FormSection title="Orders" icon={ClipboardList} tone="sky" className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField id="firstOrderNo" label="First order number" error={err('firstOrderNo')}>
+              <Input id="firstOrderNo" inputMode="numeric" {...form.register('firstOrderNo')} />
+            </FormField>
+            <FormField
+              id="ordersGoLiveDate"
+              label="Orders go-live date"
+              error={err('ordersGoLiveDate')}
+            >
+              <Input id="ordersGoLiveDate" type="date" {...form.register('ordersGoLiveDate')} />
+            </FormField>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            New orders are numbered from here, or after the highest order number, whichever is
+            higher — e.g. 3211 to continue the paper order book. Set the go-live date to the date of
+            the pending report you imported: invoice PDFs dated up to that day are recorded but
+            don&apos;t reduce the opening orders, which already count them.
           </p>
         </FormSection>
 

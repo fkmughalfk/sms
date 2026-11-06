@@ -11,6 +11,7 @@ import {
   type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { runBulk } from '../common/bulk';
 import { paymentScope } from '../common/data-scope';
 import { dateRangeWhere, fromDbDate, toDbDate } from '../common/db-date';
@@ -52,6 +53,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly discounts: DiscountsService,
   ) {}
 
   async list(user: AuthUser, query: PaymentListQuery): Promise<PaymentList> {
@@ -101,26 +103,35 @@ export class PaymentsService {
   // ── Writes (transaction + audit — CLAUDE.md rule 7) ──
 
   async create(user: AuthUser, input: PaymentInput, ip: string | null): Promise<PaymentRow> {
-    const id = await this.prisma.$transaction(async (tx) => {
-      await this.assertRefs(tx, input);
-      const created = await tx.payment.create({
-        data: { ...this.data(input), createdById: user.id },
-        select: paymentSelect,
-      });
-      await this.audit.log(
-        {
-          userId: user.id,
-          action: 'CREATE',
-          entity: 'Payment',
-          entityId: created.id,
-          after: this.auditView(created),
-          ip,
-        },
-        tx,
-      );
-      return created.id;
-    });
+    const id = await this.prisma.$transaction((tx) => this.createInTx(tx, user, input, ip));
     return this.get(user, id);
+  }
+
+  /** Records a payment inside the caller's transaction (payment slips use this). */
+  async createInTx(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    input: PaymentInput,
+    ip: string | null,
+  ): Promise<string> {
+    await this.assertRefs(tx, input);
+    const created = await tx.payment.create({
+      data: { ...this.data(input), createdById: user.id },
+      select: paymentSelect,
+    });
+    await this.audit.log(
+      {
+        userId: user.id,
+        action: 'CREATE',
+        entity: 'Payment',
+        entityId: created.id,
+        after: this.auditView(created),
+        ip,
+      },
+      tx,
+    );
+    await this.discounts.reconcile(tx, input.partyId, user.id, ip);
+    return created.id;
   }
 
   async update(
@@ -163,6 +174,10 @@ export class PaymentsService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, merged.partyId, user.id, ip);
+      if (merged.partyId !== existing.partyId) {
+        await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
+      }
     });
     return this.get(user, id);
   }
@@ -192,6 +207,7 @@ export class PaymentsService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
     });
   }
 

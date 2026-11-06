@@ -21,6 +21,7 @@ import { useSettings } from '@/lib/use-invoice';
 import { statementMessage, waLink } from '@/lib/whatsapp';
 import { cn } from '@/lib/utils';
 import { PageHeading } from '@/components/form-section';
+import { DiscountPanel } from '@/components/payment/discount-panel';
 import { ReceivePaymentDialog } from '@/components/payment/receive-payment-dialog';
 
 const toDisplayDate = (d: string) => d.split('-').reverse().join('-');
@@ -148,6 +149,7 @@ export default function PartyLedgerPage() {
         </header>
 
         {position.data && <AgeingPanel p={position.data} />}
+        <DiscountPanel partyId={partyId} />
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -188,7 +190,7 @@ export default function PartyLedgerPage() {
                   </td>
                   <td className="font-sans text-muted-foreground">{e.description}</td>
                   <td className="text-right">{e.type === 'INVOICE' ? formatPKR2(e.debit) : ''}</td>
-                  <td className="text-right">{e.type === 'PAYMENT' ? formatPKR2(e.credit) : ''}</td>
+                  <td className="text-right">{e.type !== 'INVOICE' ? formatPKR2(e.credit) : ''}</td>
                   <td className="text-right">
                     <Balance value={e.balance} />
                   </td>

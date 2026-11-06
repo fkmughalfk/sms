@@ -11,6 +11,8 @@ import {
 import { findDuplicateProducts, invoiceInputSchema } from './invoices';
 import { partySchema, productSchema, updatePartySchema, updateProductSchema } from './masters';
 import { paymentInputSchema, updatePaymentSchema } from './payments';
+import { normalizeAlias } from './pending';
+import { rateListInputSchema } from './rate-lists';
 import { createUserSchema, updateUserSchema } from './users';
 
 const messages = (result: z.ZodSafeParseResult<unknown>) =>
@@ -243,5 +245,47 @@ describe('paymentInputSchema (spec §5.4 validation)', () => {
 
   it('partial update', () => {
     expect(updatePaymentSchema.parse({ amount: 10 })).toEqual({ amount: '10' });
+  });
+});
+
+describe('rate list input', () => {
+  const item = { productId: 'p1', basis: 'PER_40KG', rate: '11300', cropYear: '25-26' };
+  const list = (items: object[]) => ({ effectiveFrom: '2026-11-04T09:00', items });
+
+  it('normalises the crop year and canonicalises the rate', () => {
+    const r = rateListInputSchema.parse(list([{ ...item, rate: '11300.50' }]));
+    expect(r.items[0]).toMatchObject({ cropYear: '2025-2026', rate: '11300.5', isAvailable: true });
+  });
+
+  it('an available line needs a rate; an N/A line does not', () => {
+    expect(rateListInputSchema.safeParse(list([{ ...item, rate: '' }])).success).toBe(false);
+    const na = rateListInputSchema.parse(list([{ ...item, rate: '', isAvailable: false }]));
+    expect(na.items[0]?.rate).toBeNull();
+  });
+
+  it('the same product + crop year twice is refused; two crop years are fine', () => {
+    const dup = rateListInputSchema.safeParse(list([item, { ...item, cropYear: '2025-2026' }]));
+    expect(dup.success).toBe(false);
+    expect(
+      rateListInputSchema.safeParse(list([item, { ...item, cropYear: '26-27' }])).success,
+    ).toBe(true);
+  });
+
+  it('refuses a bad crop year, rate or time', () => {
+    expect(rateListInputSchema.safeParse(list([{ ...item, cropYear: '27-27' }])).success).toBe(
+      false,
+    );
+    expect(rateListInputSchema.safeParse(list([{ ...item, rate: '0' }])).success).toBe(false);
+    expect(rateListInputSchema.safeParse(list([{ ...item, rate: '1.234' }])).success).toBe(false);
+    expect(
+      rateListInputSchema.safeParse({ effectiveFrom: '2026-11-04', items: [item] }).success,
+    ).toBe(false);
+  });
+});
+
+describe('normalizeAlias', () => {
+  it('trims, single-spaces and upper-cases names from other software', () => {
+    expect(normalizeAlias('  Farhan   sb ')).toBe('FARHAN SB');
+    expect(normalizeAlias('1121 STEAM')).toBe('1121 STEAM');
   });
 });

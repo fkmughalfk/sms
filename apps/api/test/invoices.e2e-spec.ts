@@ -88,8 +88,8 @@ describe('invoices (e2e)', () => {
         city: { name: 'Dina' },
         salesperson: { name: 'Farhan Khalid' },
         totalPacks: 200,
-        totalAmount: '1272188',
-        totalCommission: '4452.658',
+        totalAmount: '1272187',
+        totalCommission: '4452.6545',
         totalWeightKg: '5000',
         lineCount: 5,
         canEdit: true,
@@ -105,7 +105,7 @@ describe('invoices (e2e)', () => {
       ).toEqual([
         ['5000', '150000', '525', '750'],
         ['10156.25', '203125', '710.9375', '500'],
-        ['6406.25', '192188', '672.658', '750'],
+        ['6406.25', '192187', '672.6545', '750'],
         ['5250', '105000', '367.5', '500'],
         ['6218.75', '621875', '2176.5625', '2500'],
       ]);
@@ -116,8 +116,8 @@ describe('invoices (e2e)', () => {
 
     it('stores the same numbers in the database (Decimal, not float)', async () => {
       const inv = await t.prisma.invoice.findUniqueOrThrow({ where: { id: ids.inv15 } });
-      expect(inv.totalAmount.toString()).toBe('1272188');
-      expect(inv.totalCommission.toString()).toBe('4452.658');
+      expect(inv.totalAmount.toString()).toBe('1272187');
+      expect(inv.totalCommission.toString()).toBe('4452.6545');
     });
 
     it('ignores calculated values sent by the client (rule 2)', async () => {
@@ -133,7 +133,7 @@ describe('invoices (e2e)', () => {
         })),
       };
       const res = await as.ADMIN.post('/api/v1/invoices').send(body).expect(201);
-      expect(res.body.totalAmount).toBe('1272188');
+      expect(res.body.totalAmount).toBe('1272187');
       await as.ADMIN.delete(`/api/v1/invoices/${res.body.id}`).expect(204);
     });
 
@@ -144,10 +144,10 @@ describe('invoices (e2e)', () => {
         .expect(200);
       expect(res.body.totals).toMatchObject({
         totalPacks: 200,
-        totalAmount: '1272188',
-        totalCommission: '4452.658',
+        totalAmount: '1272187',
+        totalCommission: '4452.6545',
         tons: '5',
-        avgPerTon: '254437.6',
+        avgPerTon: '254437.4',
         avgPerPack: '6360.94',
       });
       expect(await t.prisma.invoice.count()).toBe(before);
@@ -227,11 +227,11 @@ describe('invoices (e2e)', () => {
         data: { unitWeightKg: 50, commissionRate: '0.01' },
       });
       const res = await as.ADMIN.get(`/api/v1/invoices/${ids.inv15}`).expect(200);
-      expect(res.body.totalAmount).toBe('1272188');
+      expect(res.body.totalAmount).toBe('1272187');
       expect(res.body.lines[2]).toMatchObject({
         packWeightKg: '25',
         commissionRate: '0.0035',
-        amount: '192188',
+        amount: '192187',
       });
     });
 
@@ -245,7 +245,7 @@ describe('invoices (e2e)', () => {
       expect(res.body.lines[2]).toMatchObject({
         packWeightKg: '25',
         commissionRate: '0.0035',
-        amount: '192188',
+        amount: '192187',
       });
       // ZAFARANI: pack 10 × 4 = 40 KG, Rice category rate 0.5% → 5000/40×40×10 = 50,000; commission 250
       expect(res.body.lines[5]).toMatchObject({
@@ -254,7 +254,7 @@ describe('invoices (e2e)', () => {
         amount: '50000',
         commission: '250',
       });
-      expect(res.body.totalAmount).toBe('1322188');
+      expect(res.body.totalAmount).toBe('1322187');
 
       // Put it back to the golden version for later tests.
       await as.ADMIN.put(`/api/v1/invoices/${ids.inv15}`).send(invoice15()).expect(200);
@@ -378,9 +378,9 @@ describe('invoices (e2e)', () => {
         totalPacks: 200,
         totalWeightKg: '5000',
         tons: '5',
-        totalAmount: '1272188',
-        totalCommission: '4452.658',
-        avgPerTon: '254437.6',
+        totalAmount: '1272187',
+        totalCommission: '4452.6545',
+        avgPerTon: '254437.4',
         avgPerPack: '6360.94',
       });
     });
@@ -400,7 +400,7 @@ describe('invoices (e2e)', () => {
       expect(moong.body.totals).toMatchObject({
         invoices: 1,
         totalPacks: 30,
-        totalAmount: '192188',
+        totalAmount: '192187',
       });
 
       const rice = await as.ADMIN.get(
@@ -424,7 +424,7 @@ describe('invoices (e2e)', () => {
       const ws = wb.getWorksheet('Lines')!;
       expect(ws.rowCount).toBe(7); // header + 5 lines + total
       const total = ws.getRow(7);
-      expect(total.getCell(13).value).toBe(1272188); // Amount
+      expect(total.getCell(13).value).toBe(1272187); // Amount
       expect(total.getCell(9).value).toBe(200); // Bags
     });
   });

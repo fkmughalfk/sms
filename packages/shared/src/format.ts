@@ -1,10 +1,15 @@
 import { dec, Decimal, type DecimalInput } from './calc/decimal';
+import type DecimalJs from 'decimal.js';
 
-// Display formatting (spec §8). Rounds with Decimal (half up) — never via JS floats.
+// Display formatting (spec §8). Rounds with Decimal (half up; whole rupees half down) — never via JS floats.
 
 /** Fixed decimals with thousands separators: `formatNumber('1272188', 0)` → "1,272,188". */
-export function formatNumber(value: DecimalInput, decimals: number): string {
-  const fixed = dec(value).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toFixed(decimals);
+export function formatNumber(
+  value: DecimalInput,
+  decimals: number,
+  rounding: DecimalJs.Rounding = Decimal.ROUND_HALF_UP,
+): string {
+  const fixed = dec(value).toDecimalPlaces(decimals, rounding).toFixed(decimals);
   const negative = fixed.startsWith('-');
   const [int = '0', frac] = (negative ? fixed.slice(1) : fixed).split('.');
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -13,9 +18,9 @@ export function formatNumber(value: DecimalInput, decimals: number): string {
   return negative && /[1-9]/.test(result) ? `-${result}` : result;
 }
 
-/** PKR amount in whole rupees: "1,272,188". */
+/** PKR amount in whole rupees: "1,272,188". A half rupee rounds down, like line amounts. */
 export function formatPKR(value: DecimalInput): string {
-  return formatNumber(value, 0);
+  return formatNumber(value, 0, Decimal.ROUND_HALF_DOWN);
 }
 
 /** PKR with paisa: "254,437.60". */

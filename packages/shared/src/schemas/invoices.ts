@@ -30,6 +30,12 @@ export interface InvoiceLineInput {
   qtyPacks: number;
   /** Canonical decimal string, ≤ 2 dp. */
   rate40Kg: string;
+  /** Only from invoice PDFs: ghee and spices are priced per pack as sold. */
+  rateBasis?: 'PER_40KG' | 'PER_UNIT';
+  /** PER_UNIT: price of one pack (carton / spice pack), ≤ 2 dp. */
+  packRate?: string;
+  /** "2025-2026"; blank when the invoice gives none. */
+  cropYear?: string;
 }
 
 const isBlank = (v: unknown) => v === undefined || v === null || String(v).trim() === '';

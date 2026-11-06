@@ -123,6 +123,12 @@ export class ProductsService extends MasterService<
   protected async usage(db: Db, id: string): Promise<Usage[]> {
     return [
       ['invoice line', 'invoice lines', await db.invoiceLine.count({ where: { productId: id } })],
+      [
+        'rate list line',
+        'rate list lines',
+        await db.rateListItem.count({ where: { productId: id } }),
+      ],
+      ['order line', 'order lines', await db.orderLine.count({ where: { productId: id } })],
     ];
   }
 }

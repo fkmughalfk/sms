@@ -17,7 +17,8 @@ describe('format', () => {
     expect(formatPKR(0)).toBe('0');
     expect(formatPKR('999')).toBe('999');
     expect(formatPKR('10000000000')).toBe('10,000,000,000');
-    expect(formatPKR('192187.5')).toBe('192,188');
+    expect(formatPKR('192187.5')).toBe('192,187');
+    expect(formatPKR('192187.51')).toBe('192,188');
     expect(formatPKR2('254437.6')).toBe('254,437.60');
   });
 

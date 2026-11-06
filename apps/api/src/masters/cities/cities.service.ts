@@ -15,6 +15,7 @@ export class CitiesService extends MasterService<NamedRow, NamedRow, CityInput> 
     return [
       ['party', 'parties', await db.party.count({ where: { cityId: id } })],
       ['invoice', 'invoices', await db.invoice.count({ where: { cityId: id } })],
+      ['order', 'orders', await db.order.count({ where: { cityId: id } })],
     ];
   }
 }

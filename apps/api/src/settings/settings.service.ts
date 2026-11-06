@@ -7,6 +7,7 @@ import {
   type UpdateSettingsInput,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { fromDbDate, toDbDate } from '../common/db-date';
 import type { Db } from '../masters/master.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,6 +29,8 @@ export class SettingsService {
       fiscalYearStartMonth: s?.fiscalYearStartMonth ?? 1,
       userEditWindowHours: s?.userEditWindowHours ?? 24,
       defaultCreditDays: s?.defaultCreditDays ?? DEFAULT_CREDIT_DAYS,
+      firstOrderNo: s?.firstOrderNo ?? 1,
+      ordersGoLiveDate: s?.ordersGoLiveDate ? fromDbDate(s.ordersGoLiveDate) : null,
     };
   }
 
@@ -39,9 +42,12 @@ export class SettingsService {
     return this.prisma.$transaction(async (tx) => {
       const before = await this.get(tx);
       // The address column is NOT NULL: a cleared address is stored as ''.
-      const { companyAddress, ...rest } = input;
+      const { companyAddress, ordersGoLiveDate, ...rest } = input;
       const data = {
         ...rest,
+        ...(ordersGoLiveDate !== undefined
+          ? { ordersGoLiveDate: ordersGoLiveDate ? toDbDate(ordersGoLiveDate) : null }
+          : {}),
         ...(companyAddress !== undefined ? { companyAddress: companyAddress ?? '' } : {}),
       };
       await tx.setting.upsert({ where: { id: 1 }, update: data, create: { id: 1, ...data } });

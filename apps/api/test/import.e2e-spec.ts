@@ -6,7 +6,9 @@ import { createTestApp, type TestApp } from './test-app';
 type Agent = ReturnType<typeof request.agent>;
 
 /** A small workbook laid out like the client's (spec §11): Products, Lists, Database, Payments, Sheet1, Dashboard. */
-async function workbook(opts: { badInvoiceNo?: boolean } = {}): Promise<Buffer> {
+async function workbook(
+  opts: { badInvoiceNo?: boolean; excelHalfUp?: boolean } = {},
+): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
 
   const products = wb.addWorksheet('Products');
@@ -71,7 +73,8 @@ async function workbook(opts: { badInvoiceNo?: boolean } = {}): Promise<Buffer> 
   const golden: [string, number, number, number][] = [
     ['MASAR SABIT 25KG', 30, 8000, 150000],
     ['DAAL MASH CHARI 25KG', 20, 16250, 203125],
-    ['DAAL MOONG 25KG', 30, 10250, 192188],
+    // 192,187.5 rounds half down (owner, 2026-11-05); the old Excel rounded it up to 192,188.
+    ['DAAL MOONG 25KG', 30, 10250, opts.excelHalfUp ? 192188 : 192187],
     ['DALL MASOOR 25KG', 20, 8400, 105000],
     ['DAAL CHANNA SUPREME 25KG', 100, 9950, 621875],
   ];
@@ -201,15 +204,15 @@ async function workbook(opts: { badInvoiceNo?: boolean } = {}): Promise<Buffer> 
   s1.getRow(8).values = [null, null, null, '2026-09-08', 'Someone Else', 'cash', null, 999, null];
 
   const dash = wb.addWorksheet('Dashboard');
-  dash.getCell('B7').value = 1322188;
-  dash.getCell('E7').value = 4627.658;
+  dash.getCell('B7').value = 1322187;
+  dash.getCell('E7').value = 4627.6545;
   dash.getCell('H7').value = 5.4;
   dash.getCell('K7').value = 2;
   dash.getCell('B20').value = 'SALES BY CATEGORY  —  RICE vs PULSES';
   dash.getCell('B22').value = 'Rice';
   dash.getCell('H22').value = 50000;
   dash.getCell('B23').value = 'Pulses';
-  dash.getCell('H23').value = 1272188;
+  dash.getCell('H23').value = 1272187;
   dash.getCell('B25').value = 'TOTAL';
 
   return Buffer.from(await wb.xlsx.writeBuffer());
@@ -312,6 +315,31 @@ describe('Excel import (e2e)', () => {
     ]);
   });
 
+  it('reports a line the old Excel rounded half up, but still imports it half down', async () => {
+    const res = await upload(
+      as.SUPER_ADMIN,
+      await workbook({ excelHalfUp: true }),
+      true,
+      MAPPING,
+    ).expect(200);
+    expect(res.body.ready).toBe(true);
+    expect(res.body.mismatches).toEqual([
+      expect.objectContaining({
+        invoiceNo: 15,
+        product: 'DAAL MOONG 25KG',
+        field: 'amount',
+        excel: '192188',
+        computed: '192187',
+      }),
+      expect.objectContaining({
+        invoiceNo: 15,
+        product: 'DAAL MOONG 25KG',
+        field: 'commission',
+        computed: '672.6545',
+      }),
+    ]);
+  });
+
   it('imports with the mapping: clean names, golden #15 exact, payments de-duplicated, audit entry', async () => {
     const res = await upload(as.SUPER_ADMIN, await workbook(), false, MAPPING).expect(200);
     expect(res.body).toMatchObject({
@@ -340,8 +368,8 @@ describe('Excel import (e2e)', () => {
     // Golden invoice #15 through the importer.
     const inv = await as.SUPER_ADMIN.get('/api/v1/invoices?invoiceNo=15').expect(200);
     expect(inv.body.totals).toMatchObject({
-      totalAmount: '1272188',
-      totalCommission: '4452.658',
+      totalAmount: '1272187',
+      totalCommission: '4452.6545',
       totalPacks: 200,
     });
     const rice = await t.prisma.invoice.findUniqueOrThrow({
@@ -368,8 +396,8 @@ describe('Excel import (e2e)', () => {
       '/api/v1/reports/dashboard?from=2026-09-01&to=2026-09-30',
     ).expect(200);
     expect(dash.body.kpis).toMatchObject({
-      revenue: '1322188',
-      commission: '4627.658',
+      revenue: '1322187',
+      commission: '4627.6545',
       invoices: 2,
       packs: 210,
     });

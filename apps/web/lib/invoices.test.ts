@@ -29,16 +29,16 @@ describe('calcDraft — the live grid', () => {
     expect(lines.map((l) => l?.amount.toString())).toEqual([
       '150000',
       '203125',
-      '192188',
+      '192187',
       '105000',
       '621875',
       undefined,
     ]);
     expect(lines[2]?.ratePerPack.toString()).toBe('6406.25');
-    expect(lines[2]?.commission.toString()).toBe('672.658');
+    expect(lines[2]?.commission.toString()).toBe('672.6545');
     expect(totals.totalPacks).toBe(200);
-    expect(totals.totalAmount.toString()).toBe('1272188');
-    expect(totals.totalCommission.toString()).toBe('4452.658');
+    expect(totals.totalAmount.toString()).toBe('1272187');
+    expect(totals.totalCommission.toString()).toBe('4452.6545');
     expect(totals.totalWeightKg.toString()).toBe('5000');
   });
 
@@ -71,7 +71,7 @@ describe('calcDraft — the live grid', () => {
       old,
     );
     expect(lines[0]).toMatchObject({ packWeightKg: '25', commissionRate: '0.0035' });
-    expect(lines[0]?.amount.toString()).toBe('192188');
+    expect(lines[0]?.amount.toString()).toBe('192187');
     expect(lines[1]).toMatchObject({ packWeightKg: '50', commissionRate: '0.01' });
   });
 

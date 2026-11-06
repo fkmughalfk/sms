@@ -29,6 +29,11 @@ export const updateSettingsSchema = z
       .int('Enter a whole number.')
       .min(1, 'Enter the first order number.')
       .max(99_999_999, 'Enter the first order number.'),
+    /** Invoices dated up to this day don't reduce opening orders (already in the old report). */
+    ordersGoLiveDate: z.preprocess(
+      (v) => (v === '' ? null : v),
+      z.iso.date({ error: 'Enter a valid date.' }).nullable(),
+    ),
   })
   .partial();
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
@@ -45,5 +50,7 @@ export const settingsSchema = z.object({
   defaultCreditDays: z.number(),
   /** Orders module: numbering starts here (e.g. 3211 to continue the paper series). */
   firstOrderNo: z.number(),
+  /** `YYYY-MM-DD` or null: invoice PDFs up to this date don't reduce opening orders. */
+  ordersGoLiveDate: z.string().nullable(),
 });
 export type Settings = z.infer<typeof settingsSchema>;

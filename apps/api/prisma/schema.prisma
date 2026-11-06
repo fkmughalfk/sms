@@ -45,16 +45,17 @@ model RefreshToken {
 }
 
 model Setting {
-  id                    Int      @id @default(1)
-  companyName           String   @default("WAQAR RICE MILLS")
-  companyAddress        String   @default("Shamshad Khan Shaheed Road, Kamoke")
-  defaultCommissionRate Decimal  @default(0.0035) @db.Decimal(8, 6)
-  annualSalesTarget     Decimal  @default(10000000000) @db.Decimal(18, 2)
-  fiscalYearStartMonth  Int      @default(1)
-  userEditWindowHours   Int      @default(24)
-  defaultCreditDays     Int      @default(30) // parties without their own credit days
-  firstOrderNo          Int      @default(1) // orders numbered from here (orders module)
-  updatedAt             DateTime @updatedAt
+  id                    Int       @id @default(1)
+  companyName           String    @default("WAQAR RICE MILLS")
+  companyAddress        String    @default("Shamshad Khan Shaheed Road, Kamoke")
+  defaultCommissionRate Decimal   @default(0.0035) @db.Decimal(8, 6)
+  annualSalesTarget     Decimal   @default(10000000000) @db.Decimal(18, 2)
+  fiscalYearStartMonth  Int       @default(1)
+  userEditWindowHours   Int       @default(24)
+  defaultCreditDays     Int       @default(30) // parties without their own credit days
+  firstOrderNo          Int       @default(1) // orders numbered from here (orders module)
+  ordersGoLiveDate      DateTime? @db.Date // invoices up to this date don't reduce opening orders
+  updatedAt             DateTime  @updatedAt
 }
 
 model Category {
@@ -156,6 +157,13 @@ model Invoice {
   salespersonId   String?
   salesperson     Salesperson?  @relation(fields: [salespersonId], references: [id])
   remarks         String?
+  // From invoice PDFs (phase O4); blank on invoices entered by hand.
+  doNo            String?
+  vehicleNo       String?
+  dcNo            String?
+  ogpNo           String?
+  supplyNote      String? // the PDF's "Sub Party" text, e.g. "SUPPLY FROM U-2"
+  pdfImport       PdfImport?
   totalPacks      Int           @default(0)
   totalWeightKg   Decimal       @default(0) @db.Decimal(14, 3)
   totalAmount     Decimal       @default(0) @db.Decimal(18, 2)
@@ -173,20 +181,23 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id             String  @id @default(cuid())
+  id             String            @id @default(cuid())
   invoiceId      String
-  invoice        Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice        Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   lineNo         Int
   productId      String
-  product        Product @relation(fields: [productId], references: [id])
+  product        Product           @relation(fields: [productId], references: [id])
   qtyPacks       Int
-  rate40Kg       Decimal @db.Decimal(14, 2)
-  packWeightKg   Decimal @db.Decimal(10, 3) // snapshot
-  commissionRate Decimal @db.Decimal(8, 6) // snapshot
-  ratePerPack    Decimal @db.Decimal(14, 4)
-  amount         Decimal @db.Decimal(18, 2)
-  commission     Decimal @db.Decimal(18, 4)
-  weightKg       Decimal @db.Decimal(14, 3)
+  rate40Kg       Decimal           @db.Decimal(14, 2)
+  packWeightKg   Decimal           @db.Decimal(10, 3) // snapshot
+  commissionRate Decimal           @db.Decimal(8, 6) // snapshot
+  ratePerPack    Decimal           @db.Decimal(14, 4)
+  amount         Decimal           @db.Decimal(18, 2)
+  commission     Decimal           @db.Decimal(18, 4)
+  weightKg       Decimal           @db.Decimal(14, 3)
+  rateBasis      RateBasis         @default(PER_40KG) // PER_UNIT: priced per pack (ghee, spices from PDFs)
+  cropYear       String            @default("")
+  allocations    OrderAllocation[]
 
   @@unique([invoiceId, lineNo])
   @@index([productId])
@@ -313,24 +324,25 @@ model Order {
 }
 
 model OrderLine {
-  id                String    @id @default(cuid())
+  id                String            @id @default(cuid())
   orderId           String
-  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
   lineNo            Int
   productId         String
-  product           Product   @relation(fields: [productId], references: [id])
-  cropYear          String    @default("")
+  product           Product           @relation(fields: [productId], references: [id])
+  cropYear          String            @default("")
   basis             RateBasis
-  listRate          Decimal?  @db.Decimal(14, 2) // the rate list's rate when booked
-  rate              Decimal   @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
-  packWeightKg      Decimal   @db.Decimal(10, 3) // snapshot
+  listRate          Decimal?          @db.Decimal(14, 2) // the rate list's rate when booked
+  rate              Decimal           @db.Decimal(14, 2) // booked rate (per 40 kg or per tin/pack)
+  packWeightKg      Decimal           @db.Decimal(10, 3) // snapshot
   packPcs           Int // snapshot (ghee: tins per carton)
   qtyPacks          Int
-  ratePerPack       Decimal   @db.Decimal(14, 4)
-  amount            Decimal   @db.Decimal(18, 2)
-  weightKg          Decimal   @db.Decimal(14, 3)
+  ratePerPack       Decimal           @db.Decimal(14, 4)
+  amount            Decimal           @db.Decimal(18, 2)
+  weightKg          Decimal           @db.Decimal(14, 3)
   /// Bags already dispatched before go-live (opening import); invoices add to it from O4.
-  openingDispatched Int       @default(0)
+  openingDispatched Int               @default(0)
+  allocations       OrderAllocation[]
 
   @@unique([orderId, lineNo])
   @@index([productId])
@@ -371,4 +383,48 @@ model NameAlias {
   createdAt   DateTime  @default(now())
 
   @@unique([kind, text, packKg])
+}
+
+/**
+ * How an invoice line delivers pending order lines (phase O4). Deleting the invoice frees the bags.
+ */
+model OrderAllocation {
+  id            String      @id @default(cuid())
+  invoiceLineId String
+  invoiceLine   InvoiceLine @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+  orderLineId   String
+  orderLine     OrderLine   @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  qtyPacks      Int
+
+  @@unique([invoiceLineId, orderLineId])
+  @@index([orderLineId])
+}
+
+enum PdfImportStatus {
+  POSTED // recorded as an invoice
+  NEEDS_REVIEW // waiting for the office
+  DUPLICATE // that invoice number is already recorded
+  FAILED // couldn't be read as an invoice
+}
+
+/**
+ * One uploaded invoice PDF: what was read, what's wrong, and the invoice it became.
+ */
+model PdfImport {
+  id           String          @id @default(cuid())
+  fileName     String
+  fileData     Bytes // the original PDF, kept with the invoice
+  status       PdfImportStatus
+  invoiceNo    Int?
+  parsed       Json // fields and lines as read from the PDF
+  problems     Json // [{ line?, message }]
+  resolution   Json            @default("{}") // the office's decisions (party, products, order)
+  invoiceId    String?         @unique
+  invoice      Invoice?        @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  uploadedById String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([status])
+  @@index([invoiceNo])
 }

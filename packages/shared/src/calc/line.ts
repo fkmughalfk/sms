@@ -7,6 +7,13 @@ export interface LineInput {
   packWeightKg: DecimalInput;
   /** Snapshot of the effective commission rate at save time. */
   commissionRate: DecimalInput;
+  /**
+   * PER_UNIT (desi ghee, spices — read from invoice PDFs): the line is priced by the pack
+   * as sold (`packRate`, e.g. a carton at 17,400 or a 3 kg spice pack at 8,650), and
+   * `rate40Kg` is only the printed equivalent. Default PER_40KG (spec §6.2).
+   */
+  rateBasis?: 'PER_40KG' | 'PER_UNIT';
+  packRate?: DecimalInput;
 }
 
 /** Calculated line values, rounded to their storage scale (Prisma schema §4). */
@@ -20,7 +27,10 @@ export interface LineResult {
 /** Spec §6.2. */
 export function calcLine(line: LineInput): LineResult {
   const packWeight = dec(line.packWeightKg);
-  const ratePerPack = dec(line.rate40Kg).div(40).times(packWeight); // G = F/40*E
+  const ratePerPack =
+    line.rateBasis === 'PER_UNIT' && line.packRate !== undefined
+      ? dec(line.packRate)
+      : dec(line.rate40Kg).div(40).times(packWeight); // G = F/40*E
   // H = ROUND(G*D, 0) from the unrounded rate/pack; a half rupee rounds DOWN (owner, 2026-11-05)
   const amount = ratePerPack.times(line.qtyPacks).toDecimalPlaces(0, Decimal.ROUND_HALF_DOWN);
   const commission = amount.times(line.commissionRate); // I = H * rate (not rounded)

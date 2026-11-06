@@ -83,6 +83,7 @@ describe('settings & audit log (e2e)', () => {
         userEditWindowHours: 48,
         defaultCreditDays: 45,
         firstOrderNo: 3211,
+        ordersGoLiveDate: null,
       });
 
       const after = await as.ADMIN.post('/api/v1/invoices')

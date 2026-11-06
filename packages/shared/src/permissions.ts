@@ -29,6 +29,7 @@ export const PERMISSIONS = [
   'order.read',
   'order.create',
   'order.manage',
+  'invoicePdf.import',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -52,6 +53,7 @@ const ADMIN_PERMISSIONS: readonly Permission[] = [
   'order.read',
   'order.create',
   'order.manage',
+  'invoicePdf.import',
 ];
 
 export const ROLE_PERMISSIONS: Readonly<Record<Role, ReadonlySet<Permission>>> = {

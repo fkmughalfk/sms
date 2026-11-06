@@ -18,3 +18,4 @@ export * from './schemas/audit';
 export * from './schemas/rate-lists';
 export * from './schemas/orders';
 export * from './schemas/pending';
+export * from './schemas/invoice-pdfs';

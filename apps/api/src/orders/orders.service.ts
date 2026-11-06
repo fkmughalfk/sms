@@ -73,6 +73,7 @@ const detailSelect = {
       amount: true,
       weightKg: true,
       openingDispatched: true,
+      allocations: { select: { qtyPacks: true } },
     },
   },
   discounts: { select: { category: ref, amount: true } },
@@ -97,6 +98,12 @@ interface BookedLine {
 }
 
 const lineKey = (productId: string, cropYear: string | null) => `${productId}|${cropYear ?? ''}`;
+
+/** Bags already gone: dispatched before go-live + delivered by invoices (phase O4). */
+export const dispatchedOf = (l: {
+  openingDispatched: number;
+  allocations: { qtyPacks: number }[];
+}) => l.openingDispatched + l.allocations.reduce((n, a) => n + a.qtyPacks, 0);
 
 /** Orders a user may see: ADMIN+ all; a USER their own, plus their salesperson's. */
 export function orderScope(user: AuthUser): Prisma.OrderWhereInput {
@@ -220,8 +227,8 @@ export class OrdersService {
         ratePerPack: l.ratePerPack.toString(),
         amount: l.amount.toString(),
         weightKg: l.weightKg.toString(),
-        dispatchedPacks: l.openingDispatched,
-        pendingPacks: Math.max(0, l.qtyPacks - l.openingDispatched),
+        dispatchedPacks: dispatchedOf(l),
+        pendingPacks: Math.max(0, l.qtyPacks - dispatchedOf(l)),
       })),
       discounts: o.discounts
         .map((d) => ({
@@ -300,6 +307,15 @@ export class OrdersService {
       await this.assertHeaderRefs(tx, input, before);
       const { lines, rateListId } = await this.bookLines(tx, user, input, before);
       const totals = calcOrderTotals(lines);
+      // Lines are rewritten; invoice deliveries move to the new line for the same product.
+      const delivered = await tx.orderAllocation.findMany({
+        where: { orderLine: { orderId: id } },
+        select: {
+          invoiceLineId: true,
+          qtyPacks: true,
+          orderLine: { select: { productId: true, cropYear: true } },
+        },
+      });
       await tx.orderLine.deleteMany({ where: { orderId: id } });
       await tx.orderDiscount.deleteMany({ where: { orderId: id } });
       await tx.order.update({
@@ -315,6 +331,22 @@ export class OrdersService {
           discounts: { create: await this.discountData(tx, input) },
         },
       });
+      if (delivered.length) {
+        const newLines = await tx.orderLine.findMany({
+          where: { orderId: id },
+          select: { id: true, productId: true, cropYear: true },
+        });
+        const byKey = new Map(
+          newLines.map((l) => [lineKey(l.productId, l.cropYear || null), l.id]),
+        );
+        await tx.orderAllocation.createMany({
+          data: delivered.map((a) => ({
+            invoiceLineId: a.invoiceLineId,
+            qtyPacks: a.qtyPacks,
+            orderLineId: byKey.get(lineKey(a.orderLine.productId, a.orderLine.cropYear || null))!,
+          })),
+        });
+      }
       const after = await this.get(user, id, tx);
       await this.audit.log(
         { userId: user.id, action: 'UPDATE', entity: 'Order', entityId: id, before, after, ip },
@@ -434,6 +466,17 @@ export class OrdersService {
     input: OrderInput,
     existing?: OrderDetail,
   ): Promise<{ lines: BookedLine[]; rateListId: string | null }> {
+    // Bags dispatched before go-live stay on the line (invoice deliveries are moved by update()).
+    const opening = new Map(
+      existing
+        ? (
+            await db.orderLine.findMany({
+              where: { orderId: existing.id },
+              select: { productId: true, cropYear: true, openingDispatched: true },
+            })
+          ).map((l) => [lineKey(l.productId, l.cropYear || null), l.openingDispatched])
+        : [],
+    );
     const manage = hasPermission(user.role, 'order.manage');
     const current = await db.rateList.findFirst({
       where: { effectiveFrom: { lte: new Date() } },
@@ -540,7 +583,7 @@ export class OrdersService {
         ratePerPack: calc.ratePerPack.toString(),
         amount: calc.amount.toString(),
         weightKg: calc.weightKg.toString(),
-        openingDispatched: kept?.dispatchedPacks ?? 0,
+        openingDispatched: opening.get(key) ?? 0,
       };
     });
     const wanted = new Set(input.lines.map((l) => lineKey(l.productId, l.cropYear)));

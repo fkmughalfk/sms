@@ -64,6 +64,15 @@ interface Snapshot {
 
 type CalculatedLine = InvoiceLineInput & Snapshot & LineResult;
 
+/** Delivery fields read from an invoice PDF (phase O4). */
+export interface PdfHeader {
+  doNo: string | null;
+  vehicleNo: string | null;
+  dcNo: string | null;
+  ogpNo: string | null;
+  supplyNote: string | null;
+}
+
 /** Sortable columns of the Invoices view (`?sort=field:dir`). */
 const INVOICE_SORT: SortColumns = {
   ...byFields(
@@ -291,32 +300,46 @@ export class InvoicesService {
   // ── Writes (one transaction each, with an audit entry — CLAUDE.md rule 7) ──
 
   async create(user: AuthUser, input: InvoiceInput, ip: string | null): Promise<InvoiceDetail> {
-    const id = await this.prisma.$transaction(async (tx) => {
-      await this.assertInvoiceNoFree(tx, input.invoiceNo);
-      const { lines, totals } = await this.calculate(tx, input);
-      const created = await tx.invoice.create({
-        data: {
-          ...this.headerData(input),
-          ...this.totalsData(totals),
-          createdById: user.id,
-          lines: { create: lines.map((l) => this.lineData(l)) },
-        },
-        select: { id: true },
-      });
-      await this.audit.log(
-        {
-          userId: user.id,
-          action: 'CREATE',
-          entity: 'Invoice',
-          entityId: created.id,
-          after: this.auditSnapshot(input, totals),
-          ip,
-        },
-        tx,
-      );
-      return created.id;
-    });
+    const id = await this.prisma.$transaction((tx) => this.createInTx(tx, user, input, ip));
     return this.get(user, id);
+  }
+
+  /**
+   * Creates an invoice inside the caller's transaction (the invoice-PDF reader uses this
+   * so the invoice and the order deliveries are saved together). Returns the new id and
+   * the saved line ids in line order.
+   */
+  async createInTx(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    input: InvoiceInput,
+    ip: string | null,
+    pdf?: PdfHeader,
+  ): Promise<string> {
+    await this.assertInvoiceNoFree(tx, input.invoiceNo);
+    const { lines, totals } = await this.calculate(tx, input);
+    const created = await tx.invoice.create({
+      data: {
+        ...this.headerData(input),
+        ...(pdf ?? {}),
+        ...this.totalsData(totals),
+        createdById: user.id,
+        lines: { create: lines.map((l) => this.lineData(l)) },
+      },
+      select: { id: true },
+    });
+    await this.audit.log(
+      {
+        userId: user.id,
+        action: 'CREATE',
+        entity: 'Invoice',
+        entityId: created.id,
+        after: { ...this.auditSnapshot(input, totals), ...(pdf ? { fromPdf: pdf } : {}) },
+        ip,
+      },
+      tx,
+    );
+    return created.id;
   }
 
   async update(
@@ -327,6 +350,14 @@ export class InvoicesService {
   ): Promise<InvoiceDetail> {
     await this.prisma.$transaction(async (tx) => {
       const existing = await this.findEditable(tx, user, id);
+      const delivered = await tx.orderAllocation.count({
+        where: { invoiceLine: { invoiceId: id } },
+      });
+      if (delivered > 0) {
+        throw new ConflictException(
+          'This invoice delivered bags of pending orders. To change it, delete it and read its PDF again.',
+        );
+      }
       if (input.invoiceNo !== existing.invoiceNo)
         await this.assertInvoiceNoFree(tx, input.invoiceNo);
 
@@ -607,6 +638,8 @@ export class InvoicesService {
       productId: l.productId,
       qtyPacks: l.qtyPacks,
       rate40Kg: l.rate40Kg,
+      rateBasis: l.rateBasis ?? 'PER_40KG',
+      cropYear: l.cropYear ?? '',
       packWeightKg: l.packWeightKg,
       commissionRate: l.commissionRate,
       ratePerPack: l.ratePerPack.toString(),

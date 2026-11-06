@@ -183,3 +183,37 @@ describe('dashboard / recovery metrics', () => {
     expect(recoveryRate(250, 1000).toString()).toBe('0.25');
   });
 });
+
+describe('calcLine — per-pack lines from invoice PDFs (ghee, spices)', () => {
+  it('Bari Elaichi 3 kg: 20 packs × 8,650 = 173,000 (the printed Rate 40Kg 115,333 is not used)', () => {
+    const r = calcLine({
+      qtyPacks: 20,
+      packWeightKg: '3',
+      rate40Kg: '115333',
+      commissionRate: RATE,
+      rateBasis: 'PER_UNIT',
+      packRate: '8650',
+    });
+    expect([r.ratePerPack.toString(), r.amount.toString(), r.weightKg.toString()]).toEqual([
+      '8650',
+      '173000',
+      '60',
+    ]);
+  });
+
+  it('ghee 500 g, carton of 12: 5 cartons × 17,400 = 87,000, 30 kg', () => {
+    const r = calcLine({
+      qtyPacks: 5,
+      packWeightKg: '6',
+      rate40Kg: '116000',
+      commissionRate: RATE,
+      rateBasis: 'PER_UNIT',
+      packRate: '17400',
+    });
+    expect([r.amount.toString(), r.weightKg.toString(), r.commission.toString()]).toEqual([
+      '87000',
+      '30',
+      '304.5',
+    ]);
+  });
+});

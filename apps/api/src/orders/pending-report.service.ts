@@ -14,7 +14,7 @@ import {
 import { fromDbDate } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { orderScope } from './orders.service';
+import { dispatchedOf, orderScope } from './orders.service';
 
 const ref = { select: { id: true, name: true } } as const;
 const NO_CITY = 'No city';
@@ -66,6 +66,7 @@ export class PendingReportService {
           qtyPacks: true,
           weightKg: true,
           openingDispatched: true,
+          allocations: { select: { qtyPacks: true } },
           product: { select: { id: true, name: true, category: { select: { name: true } } } },
           order: {
             select: {
@@ -91,7 +92,7 @@ export class PendingReportService {
         packWeightKg: r.packWeightKg.toString(),
         packPcs: r.packPcs,
         qtyPacks: r.qtyPacks,
-        dispatchedPacks: r.openingDispatched,
+        dispatchedPacks: dispatchedOf(r),
       });
       if (p.pendingPacks === 0) continue;
       const o = r.order;

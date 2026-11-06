@@ -35,6 +35,7 @@ const MATRIX: Record<Permission, [superAdmin: boolean, admin: boolean, user: boo
   'order.read': [true, true, true],
   'order.create': [true, true, true],
   'order.manage': [true, true, false],
+  'invoicePdf.import': [true, true, false],
 };
 
 describe('permission matrix (spec §3)', () => {

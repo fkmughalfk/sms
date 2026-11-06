@@ -10,6 +10,7 @@ import { PermissionsGuard } from './common/permissions.guard';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { ImportModule } from './import/import.module';
+import { InvoicePdfsModule } from './invoice-pdfs/invoice-pdfs.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
 import { OrdersModule } from './orders/orders.module';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module';
     RateListsModule,
     OrdersModule,
     InvoicesModule,
+    InvoicePdfsModule,
     PaymentsModule,
     RecoveryModule,
     ReportsModule,

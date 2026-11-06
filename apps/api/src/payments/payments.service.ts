@@ -101,26 +101,34 @@ export class PaymentsService {
   // ── Writes (transaction + audit — CLAUDE.md rule 7) ──
 
   async create(user: AuthUser, input: PaymentInput, ip: string | null): Promise<PaymentRow> {
-    const id = await this.prisma.$transaction(async (tx) => {
-      await this.assertRefs(tx, input);
-      const created = await tx.payment.create({
-        data: { ...this.data(input), createdById: user.id },
-        select: paymentSelect,
-      });
-      await this.audit.log(
-        {
-          userId: user.id,
-          action: 'CREATE',
-          entity: 'Payment',
-          entityId: created.id,
-          after: this.auditView(created),
-          ip,
-        },
-        tx,
-      );
-      return created.id;
-    });
+    const id = await this.prisma.$transaction((tx) => this.createInTx(tx, user, input, ip));
     return this.get(user, id);
+  }
+
+  /** Records a payment inside the caller's transaction (payment slips use this). */
+  async createInTx(
+    tx: Prisma.TransactionClient,
+    user: AuthUser,
+    input: PaymentInput,
+    ip: string | null,
+  ): Promise<string> {
+    await this.assertRefs(tx, input);
+    const created = await tx.payment.create({
+      data: { ...this.data(input), createdById: user.id },
+      select: paymentSelect,
+    });
+    await this.audit.log(
+      {
+        userId: user.id,
+        action: 'CREATE',
+        entity: 'Payment',
+        entityId: created.id,
+        after: this.auditView(created),
+        ip,
+      },
+      tx,
+    );
+    return created.id;
   }
 
   async update(

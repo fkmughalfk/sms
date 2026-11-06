@@ -204,22 +204,23 @@ model InvoiceLine {
 }
 
 model Payment {
-  id          String    @id @default(cuid())
-  paymentDate DateTime  @db.Date
+  id          String       @id @default(cuid())
+  paymentDate DateTime     @db.Date
   partyId     String
-  party       Party     @relation(fields: [partyId], references: [id])
+  party       Party        @relation(fields: [partyId], references: [id])
   subPartyId  String?
-  subParty    SubParty? @relation(fields: [subPartyId], references: [id])
+  subParty    SubParty?    @relation(fields: [subPartyId], references: [id])
   slipNo      String?
   bankId      String?
-  bank        Bank?     @relation(fields: [bankId], references: [id])
-  amount      Decimal   @db.Decimal(18, 2)
+  bank        Bank?        @relation(fields: [bankId], references: [id])
+  amount      Decimal      @db.Decimal(18, 2)
   remarks     String?
+  slip        PaymentSlip?
   createdById String
   updatedById String?
   deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([paymentDate])
   @@index([partyId])
@@ -427,4 +428,33 @@ model PdfImport {
 
   @@index([status])
   @@index([invoiceNo])
+}
+
+enum SlipStatus {
+  TO_CONFIRM // a salesman's slip, waiting for the office
+  SAVED // recorded as a payment
+  REJECTED
+}
+
+/**
+ * A bank deposit slip / transfer screenshot behind a payment (phase O5).
+ */
+model PaymentSlip {
+  id           String     @id @default(cuid())
+  fileName     String
+  mimeType     String
+  fileData     Bytes
+  status       SlipStatus
+  partyId      String // chosen by the uploader
+  details      Json // date, amount, bank, reference, depositor, method (as entered / read)
+  paymentId    String?    @unique
+  payment      Payment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  rejectReason String?
+  uploadedById String
+  reviewedById String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([status])
+  @@index([uploadedById])
 }

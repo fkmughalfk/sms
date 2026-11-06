@@ -14,6 +14,7 @@ import { InvoicePdfsModule } from './invoice-pdfs/invoice-pdfs.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { MastersModule } from './masters/masters.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentSlipsModule } from './payment-slips/payment-slips.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RateListsModule } from './rate-lists/rate-lists.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     InvoicesModule,
     InvoicePdfsModule,
     PaymentsModule,
+    PaymentSlipsModule,
     RecoveryModule,
     ReportsModule,
     ImportModule,

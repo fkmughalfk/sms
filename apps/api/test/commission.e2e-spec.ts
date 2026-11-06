@@ -101,6 +101,17 @@ describe('commission (e2e)', () => {
     expect(await rows(before)).toEqual([['Ali', 'SALESMAN', '350']]);
   });
 
+  it("the invoice grid and products list show the rules' rate (pulses 0.25%)", async () => {
+    const options = (await as.ADMIN.get('/api/v1/products/options').expect(200)).body as {
+      id: string;
+      effectiveCommissionRate: string;
+    }[];
+    const rate = (pid?: string) => options.find((o) => o.id === pid)?.effectiveCommissionRate;
+    expect([rate(id.pulsesProduct), rate(id.riceProduct)]).toEqual(['0.0025', '0.0035']);
+    const one = await as.ADMIN.get(`/api/v1/products/${id.pulsesProduct}`).expect(200);
+    expect(one.body.effectiveCommissionRate).toBe('0.0025');
+  });
+
   it('new invoices follow the rules (the four examples of the spec)', async () => {
     const a = await invoice(id.aliParty, id.riceProduct, { salespersonId: id.ali });
     expect(await rows(a)).toEqual([['Farhan Khalid', 'OVERRIDE', '350']]);

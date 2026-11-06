@@ -45,9 +45,13 @@ export interface ParsedInvoice {
   problems: string[];
 }
 
-const importEsm = new Function('specifier', 'return import(specifier)') as (
-  specifier: string,
-) => Promise<unknown>;
+// The comment makes the source unique per module load. V8 reuses a compiled function with the
+// same source, along with the module loader it was first made in; under Jest that can be an
+// earlier test file's, already torn down ("import a file after the environment...").
+const importEsm = new Function(
+  'specifier',
+  `return import(specifier); // ${Date.now()}-${Math.random()}`,
+) as (specifier: string) => Promise<unknown>;
 
 /**
  * The resolved path is what's imported. Also, writing `require.resolve` here lets the Vercel

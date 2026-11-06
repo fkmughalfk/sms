@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  commissionTotalRate,
   DEFAULT_COMMISSION_RATE,
   packWeightKg,
   type ProductInput,
@@ -35,6 +36,29 @@ export async function defaultCommissionRate(db: Db): Promise<string> {
   return setting?.defaultCommissionRate.toString() ?? DEFAULT_COMMISSION_RATE;
 }
 
+/** What a product's effective commission rate depends on besides the product itself. */
+interface RateContext {
+  defaultRate: string;
+  /** The rate per category of the salesman who earns on all sales (commission spec), if any. */
+  overrider: Record<string, string>;
+}
+
+async function rateContext(db: Db): Promise<RateContext> {
+  const [defaultRate, overrider] = await Promise.all([
+    defaultCommissionRate(db),
+    db.salesperson.findFirst({
+      where: { earnsOnAllSales: true },
+      select: { commissionRates: { select: { categoryId: true, rate: true } } },
+    }),
+  ]);
+  return {
+    defaultRate,
+    overrider: Object.fromEntries(
+      (overrider?.commissionRates ?? []).map((r) => [r.categoryId, r.rate.toString()]),
+    ),
+  };
+}
+
 @Injectable()
 export class ProductsService extends MasterService<
   Rec,
@@ -54,22 +78,28 @@ export class ProductsService extends MasterService<
     return db.product as unknown as MasterDelegate<Rec>;
   }
 
-  protected override loadContext(db: Db): Promise<string> {
-    return defaultCommissionRate(db);
+  protected override loadContext(db: Db): Promise<RateContext> {
+    return rateContext(db);
   }
 
-  protected override toRow(rec: Rec, defaultRate: unknown): ProductRow {
+  /** The effective rate is what a new invoice line would get (same rule as invoices). */
+  protected override toRow(rec: Rec, context: unknown): ProductRow {
     const { category, ...rest } = rec;
+    const ctx = context as RateContext;
     return {
       ...rest,
       unitWeightKg: rec.unitWeightKg.toString(),
       packWeightKg: packWeightKg(rec.unitWeightKg.toString(), rec.packPcs).toString(),
       category: { id: category.id, name: category.name },
       commissionRate: rec.commissionRate?.toString() ?? null,
-      effectiveCommissionRate: resolveCommissionRate(
-        rec.commissionRate?.toString(),
-        category.commissionRate?.toString(),
-        defaultRate as string,
+      effectiveCommissionRate: commissionTotalRate(
+        { overrider: { salespersonId: '', rates: ctx.overrider }, shares: [] },
+        rec.categoryId,
+        resolveCommissionRate(
+          rec.commissionRate?.toString(),
+          category.commissionRate?.toString(),
+          ctx.defaultRate,
+        ),
       ).toString(),
     };
   }
@@ -103,12 +133,12 @@ export class ProductsService extends MasterService<
 
   /** Dropdown rows for the invoice grid: pack weight and today's effective rate included. */
   async productOptions(): Promise<ProductOption[]> {
-    const [rows, defaultRate] = await Promise.all([
+    const [rows, context] = await Promise.all([
       this.prisma.product.findMany({ where: { isActive: true }, select, orderBy: { name: 'asc' } }),
-      defaultCommissionRate(this.prisma),
+      rateContext(this.prisma),
     ]);
     return rows.map((rec) => {
-      const row = this.toRow(rec, defaultRate);
+      const row = this.toRow(rec, context);
       return {
         id: row.id,
         name: row.name,

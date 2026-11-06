@@ -10,7 +10,7 @@ import {
   paymentListSchema,
 } from '@sms/shared';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Eye, Pencil, Plus, Trash2, Wallet, X } from 'lucide-react';
+import { Download, Eye, Pencil, Plus, Receipt, Trash2, Wallet, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useDeferredValue, useState } from 'react';
@@ -151,6 +151,13 @@ export default function PaymentsPage() {
           {can('export.excel') && (
             <Button variant="outline" onClick={exportExcel} disabled={exporting}>
               <Download /> {exporting ? 'Exporting…' : 'Export'}
+            </Button>
+          )}
+          {can('payment.create') && (
+            <Button asChild variant="outline">
+              <Link href="/payments/slips">
+                <Receipt /> Payment slips
+              </Link>
             </Button>
           )}
           {can('payment.create') && (

@@ -137,7 +137,7 @@ function Review({ detail: d }: { detail: PdfImportDetail }) {
           </Link>
         </Button>
         <div className="flex flex-wrap items-start gap-3">
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <PageHeading icon={FileText} tone="indigo">
               Invoice {d.invoiceNo ?? '?'}
             </PageHeading>

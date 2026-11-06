@@ -88,9 +88,28 @@ The invoice PDFs from the current software contain real text, not scans, so they
 | FARHAN SB                        | Farhan Khalid                                |
 | HAMDARD TDR, PAK RICE TRD, …     | the matching party (mapped on first sight)   |
 
-## 5. Reading payment PDFs
+## 5. Payment slips (photos and screenshots)
 
-The same flow (read → check → post or Needs review) records payments in the main app. **Waiting for a sample payment PDF** to define the fields.
+Payments arrive as **images**, not text PDFs: photographed bank deposit slips (handwritten, stamped, often rotated) and banking-app screenshots. The samples (05-11-2026) cover an Allied Bank deposit slip, a Meezan deposit slip, a Meezan app transfer and a UBL app transfer.
+
+Owner's choices (2026-11-06):
+
+| Question    | Answer                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------ |
+| Reading     | **AI reads the image, a person confirms**; nothing is saved unchecked                                        |
+| Party       | **The uploader picks the party every time** (slips name the depositor, not the party; nothing is remembered) |
+| Who uploads | **Salesmen and office**; a salesman's slip waits for the office to confirm before it counts                  |
+
+Flow:
+
+1. Upload a photo, screenshot or PDF (phone camera works), and **choose the party**.
+2. AI vision reads: **date, amount, receiving bank account, bank reference** (deposit or transfer reference), **depositor name**, cash or transfer. Each field shows how sure the reading is, and the image stays beside the form.
+3. **The bank** comes from the receiving account. The company's account → bank pairs are kept in Settings, not in code.
+4. **Duplicate guard:** the same bank reference, or the same party + amount + date + bank, is flagged before saving.
+5. **Office:** checks, corrects and saves, and the payment is recorded (ledger, recovery, prompt-payment discount). **Salesman:** the slip waits in "Slips to confirm"; the office confirms or rejects it with a reason.
+6. The slip image is kept with the payment. The depositor name and reference go into the payment's remarks.
+
+Needs an **Anthropic API key** on the API server (`ANTHROPIC_API_KEY`); cost is a few rupees per slip. Without a key the form still works and is simply typed in.
 
 ## 6. Prompt-payment discount (credit policy)
 
@@ -173,14 +192,13 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 | **O2. Orders** ✅ built                | Orders, lines, approval, credit warning, statuses                                       | A salesman books order 3211 with list rates; the office approves it                      |
 | **O3. Pending orders report** ✅ built | Report in the current layout, per-party PDF, opening-order import, starting order no.   | The 04-11-2026 sample reproduces exactly (83,226 bags, Rs 538,896,375)                   |
 | **O4. Invoice PDF reader** ✅ built    | Upload, parser, checks, aliases, Needs review, auto-post, order allocation, PDF storage | The sample invoice posts, and its lines reduce the right pending orders                  |
-| **O5. Payment PDF reader**             | Parser + checks + post                                                                  | Needs a sample payment PDF                                                               |
+| **O5. Payment slips**                  | Upload + AI reading + confirm, duplicate guard, bank from account                       | Each sample slip reads to the right amount, date, bank and reference                     |
 | **O6. Prompt-payment discount**        | Calc, automatic ledger credit, reversal                                                 | A 30-day party paying on day 25 earns exactly the order's discount; on day 31 it doesn't |
 | **C. Commission**                      | See `docs/COMMISSION_SPEC.md`                                                           | Its own tests                                                                            |
 
 ## 11. Still open (to be supplied later by the owner)
 
 - **Go-live data:** the opening pending orders to import and the next order number (the design supports both).
-- **A sample payment PDF.**
 - The pending report's **Payment status** column is empty in every sample, so its meaning is unknown and it is left out for now.
 
 ## 12. Owner's answers (2026-11-05)

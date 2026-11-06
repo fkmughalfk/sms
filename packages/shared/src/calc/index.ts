@@ -7,3 +7,4 @@ export * from './ageing';
 export * from './rates';
 export * from './order';
 export * from './discount';
+export * from './commission';

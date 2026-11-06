@@ -59,12 +59,13 @@ model Setting {
 }
 
 model Category {
-  id             String          @id @default(cuid())
-  name           String          @unique @db.Citext
-  commissionRate Decimal?        @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
-  isActive       Boolean         @default(true)
-  products       Product[]
-  orderDiscounts OrderDiscount[]
+  id               String                      @id @default(cuid())
+  name             String                      @unique @db.Citext
+  commissionRate   Decimal?                    @db.Decimal(8, 6) // null → Setting.defaultCommissionRate
+  isActive         Boolean                     @default(true)
+  products         Product[]
+  orderDiscounts   OrderDiscount[]
+  salespersonRates SalespersonCommissionRate[]
 }
 
 model Product {
@@ -115,27 +116,34 @@ model Party {
 }
 
 model SubParty {
-  id       String    @id @default(cuid())
-  name     String    @db.Citext
-  partyId  String?
-  party    Party?    @relation(fields: [partyId], references: [id])
-  isActive Boolean   @default(true)
-  invoices Invoice[]
-  payments Payment[]
-  orders   Order[]
+  id               String            @id @default(cuid())
+  name             String            @db.Citext
+  partyId          String?
+  party            Party?            @relation(fields: [partyId], references: [id])
+  isActive         Boolean           @default(true)
+  invoices         Invoice[]
+  payments         Payment[]
+  orders           Order[]
+  commissionShares CommissionShare[]
 
   @@unique([name, partyId])
 }
 
 model Salesperson {
-  id       String    @id @default(cuid())
-  name     String    @unique @db.Citext
-  phone    String?
-  isActive Boolean   @default(true)
-  invoices Invoice[]
-  users    User[]
-  parties  Party[]
-  orders   Order[]
+  id              String                      @id @default(cuid())
+  name            String                      @unique @db.Citext
+  phone           String?
+  isActive        Boolean                     @default(true)
+  invoices        Invoice[]
+  users           User[]
+  parties         Party[]
+  orders          Order[]
+  /// Earns commission on every sale at his own category rates (Farhan); at most one.
+  earnsOnAllSales Boolean                     @default(false)
+  commissionRates SalespersonCommissionRate[]
+  sharesEarned    CommissionShare[]           @relation("ShareEarner")
+  sharesMatched   CommissionShare[]           @relation("ShareMatchParty")
+  lineCommissions InvoiceLineCommission[]
 }
 
 model Bank {
@@ -187,23 +195,24 @@ model Invoice {
 }
 
 model InvoiceLine {
-  id             String            @id @default(cuid())
+  id             String                  @id @default(cuid())
   invoiceId      String
-  invoice        Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice        Invoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   lineNo         Int
   productId      String
-  product        Product           @relation(fields: [productId], references: [id])
+  product        Product                 @relation(fields: [productId], references: [id])
   qtyPacks       Int
-  rate40Kg       Decimal           @db.Decimal(14, 2)
-  packWeightKg   Decimal           @db.Decimal(10, 3) // snapshot
-  commissionRate Decimal           @db.Decimal(8, 6) // snapshot
-  ratePerPack    Decimal           @db.Decimal(14, 4)
-  amount         Decimal           @db.Decimal(18, 2)
-  commission     Decimal           @db.Decimal(18, 4)
-  weightKg       Decimal           @db.Decimal(14, 3)
-  rateBasis      RateBasis         @default(PER_40KG) // PER_UNIT: priced per pack (ghee, spices from PDFs)
-  cropYear       String            @default("")
+  rate40Kg       Decimal                 @db.Decimal(14, 2)
+  packWeightKg   Decimal                 @db.Decimal(10, 3) // snapshot
+  commissionRate Decimal                 @db.Decimal(8, 6) // snapshot
+  ratePerPack    Decimal                 @db.Decimal(14, 4)
+  amount         Decimal                 @db.Decimal(18, 2)
+  commission     Decimal                 @db.Decimal(18, 4)
+  weightKg       Decimal                 @db.Decimal(14, 3)
+  rateBasis      RateBasis               @default(PER_40KG) // PER_UNIT: priced per pack (ghee, spices from PDFs)
+  cropYear       String                  @default("")
   allocations    OrderAllocation[]
+  commissions    InvoiceLineCommission[]
 
   @@unique([invoiceId, lineNo])
   @@index([productId])
@@ -488,4 +497,58 @@ model DiscountCredit {
   updatedAt      DateTime       @updatedAt
 
   @@index([partyId])
+}
+
+// ── Commission (docs/COMMISSION_SPEC.md) ──
+
+/**
+ * A salesman's commission rate for a category (fraction: 0.0035 = 0.35%).
+ */
+model SalespersonCommissionRate {
+  id            String      @id @default(cuid())
+  salespersonId String
+  salesperson   Salesperson @relation(fields: [salespersonId], references: [id], onDelete: Cascade)
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  rate          Decimal     @db.Decimal(8, 6)
+
+  @@unique([salespersonId, categoryId])
+}
+
+/**
+ * A flat share out of the total (Arslan Dar 0.15%) on sales to a salesman's parties or through a sub-party.
+ */
+model CommissionShare {
+  id                      String       @id @default(cuid())
+  earnerId                String
+  earner                  Salesperson  @relation("ShareEarner", fields: [earnerId], references: [id], onDelete: Cascade)
+  matchPartySalespersonId String?
+  matchPartySalesperson   Salesperson? @relation("ShareMatchParty", fields: [matchPartySalespersonId], references: [id], onDelete: Cascade)
+  matchSubPartyId         String?
+  matchSubParty           SubParty?    @relation(fields: [matchSubPartyId], references: [id], onDelete: Cascade)
+  rate                    Decimal      @db.Decimal(8, 6)
+  sortOrder               Int          @default(0)
+}
+
+enum CommissionBasis {
+  OVERRIDE // the salesman who earns on all sales
+  SHARE // a share rule
+  SALESMAN // the invoice's own salesman (no overriding salesman set)
+}
+
+/**
+ * Who earns what on an invoice line; the rows add up to the line's commission.
+ */
+model InvoiceLineCommission {
+  id            String          @id @default(cuid())
+  invoiceLineId String
+  invoiceLine   InvoiceLine     @relation(fields: [invoiceLineId], references: [id], onDelete: Cascade)
+  salespersonId String
+  salesperson   Salesperson     @relation(fields: [salespersonId], references: [id])
+  basis         CommissionBasis
+  rate          Decimal         @db.Decimal(8, 6)
+  amount        Decimal         @db.Decimal(18, 4)
+
+  @@unique([invoiceLineId, salespersonId])
+  @@index([salespersonId])
 }

@@ -21,3 +21,4 @@ export * from './schemas/pending';
 export * from './schemas/invoice-pdfs';
 export * from './schemas/payment-slips';
 export * from './schemas/discounts';
+export * from './schemas/commission';

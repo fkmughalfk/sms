@@ -24,8 +24,11 @@ import {
   resolveCommissionRate,
   type Totals,
   type BulkResult,
+  type CommissionConfig,
+  commissionTotalRate,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { CommissionService } from '../commission/commission.service';
 import { DiscountsService } from '../discounts/discounts.service';
 import { runBulk } from '../common/bulk';
 import { invoiceScope } from '../common/data-scope';
@@ -132,6 +135,7 @@ export class InvoicesService {
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
     private readonly discounts: DiscountsService,
+    private readonly commission: CommissionService,
   ) {}
 
   // ── Queries ──
@@ -319,14 +323,17 @@ export class InvoicesService {
     pdf?: PdfHeader,
   ): Promise<string> {
     await this.assertInvoiceNoFree(tx, input.invoiceNo);
-    const { lines, totals } = await this.calculate(tx, input);
+    const { lines, totals, commission } = await this.calculate(tx, input);
+    const split = await this.splitter(tx, input, commission);
     const created = await tx.invoice.create({
       data: {
         ...this.headerData(input),
         ...(pdf ?? {}),
         ...this.totalsData(totals),
         createdById: user.id,
-        lines: { create: lines.map((l) => this.lineData(l)) },
+        lines: {
+          create: lines.map((l) => ({ ...this.lineData(l), commissions: { create: split(l) } })),
+        },
       },
       select: { id: true },
     });
@@ -364,7 +371,8 @@ export class InvoicesService {
       if (input.invoiceNo !== existing.invoiceNo)
         await this.assertInvoiceNoFree(tx, input.invoiceNo);
 
-      const { lines, totals } = await this.calculate(tx, input, existing);
+      const { lines, totals, commission } = await this.calculate(tx, input, existing);
+      const split = await this.splitter(tx, input, commission);
       await tx.invoiceLine.deleteMany({ where: { invoiceId: id } });
       await tx.invoice.update({
         where: { id },
@@ -372,7 +380,9 @@ export class InvoicesService {
           ...this.headerData(input),
           ...this.totalsData(totals),
           updatedById: user.id,
-          lines: { create: lines.map((l) => this.lineData(l)) },
+          lines: {
+            create: lines.map((l) => ({ ...this.lineData(l), commissions: { create: split(l) } })),
+          },
         },
       });
       await this.audit.log(
@@ -515,11 +525,13 @@ export class InvoicesService {
           packPcs: true,
           commissionRate: true,
           isActive: true,
+          categoryId: true,
           category: { select: { commissionRate: true } },
         },
       }),
       this.settings.get(db),
     ]);
+    const commission = await this.commission.config(db);
     const byId = new Map(products.map((p) => [p.id, p]));
 
     // Old snapshots per product, consumed in line order.
@@ -549,10 +561,15 @@ export class InvoicesService {
       }
       const snapshot = oldSnapshots.get(line.productId)?.shift() ?? {
         packWeightKg: packWeightKg(product.unitWeightKg.toString(), product.packPcs).toString(),
-        commissionRate: resolveCommissionRate(
-          product.commissionRate?.toString(),
-          product.category.commissionRate?.toString(),
-          settings.defaultCommissionRate,
+        // The salesman who earns on all sales sets the rate for his categories (commission spec).
+        commissionRate: commissionTotalRate(
+          commission,
+          product.categoryId,
+          resolveCommissionRate(
+            product.commissionRate?.toString(),
+            product.category.commissionRate?.toString(),
+            settings.defaultCommissionRate,
+          ),
         ).toString(),
       };
       return { ...line, ...snapshot };
@@ -562,7 +579,7 @@ export class InvoicesService {
     const productRefs = new Map(
       products.map((p) => [p.id, { id: p.id, name: p.name, sku: p.sku }]),
     );
-    return { lines, totals, products: productRefs };
+    return { lines, totals, products: productRefs, commission };
   }
 
   private async assertHeaderRefs(db: Db, input: InvoiceInput, existing?: ExistingInvoice) {
@@ -638,6 +655,22 @@ export class InvoicesService {
       totalAmount: totals.totalAmount.toString(),
       totalCommission: totals.totalCommission.toString(),
     };
+  }
+
+  /** Who earns what on each line (commission spec §2), from the invoice's party and sub-party. */
+  private async splitter(db: Db, input: InvoiceInput, config: CommissionConfig) {
+    const party = await db.party.findUnique({
+      where: { id: input.partyId },
+      select: { salespersonId: true },
+    });
+    return (l: CalculatedLine) =>
+      this.commission.rows(config, {
+        amount: l.amount.toString(),
+        totalRate: l.commissionRate,
+        partySalespersonId: party?.salespersonId ?? null,
+        subPartyId: input.subPartyId,
+        invoiceSalespersonId: input.salespersonId,
+      });
   }
 
   private lineData(l: CalculatedLine) {

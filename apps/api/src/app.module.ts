@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { PermissionsGuard } from './common/permissions.guard';
 import { validateEnv } from './config/env';
+import { CommissionModule } from './commission/commission.module';
 import { DiscountsModule } from './discounts/discounts.module';
 import { HealthModule } from './health/health.module';
 import { ImportModule } from './import/import.module';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module';
     PrismaModule,
     AuditModule,
     DiscountsModule,
+    CommissionModule,
     SettingsModule,
     AuthModule,
     UsersModule,

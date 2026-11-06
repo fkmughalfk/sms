@@ -21,6 +21,11 @@ export class SalespersonsService extends MasterService<
     return [
       ['invoice', 'invoices', await db.invoice.count({ where: { salespersonId: id } })],
       ['order', 'orders', await db.order.count({ where: { salespersonId: id } })],
+      [
+        'commission entry',
+        'commission entries',
+        await db.invoiceLineCommission.count({ where: { salespersonId: id } }),
+      ],
       ['user', 'users', await db.user.count({ where: { salespersonId: id } })],
       ['party', 'parties', await db.party.count({ where: { salespersonId: id } })],
     ];

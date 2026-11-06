@@ -11,6 +11,7 @@ import {
   type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { runBulk } from '../common/bulk';
 import { paymentScope } from '../common/data-scope';
 import { dateRangeWhere, fromDbDate, toDbDate } from '../common/db-date';
@@ -52,6 +53,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly discounts: DiscountsService,
   ) {}
 
   async list(user: AuthUser, query: PaymentListQuery): Promise<PaymentList> {
@@ -128,6 +130,7 @@ export class PaymentsService {
       },
       tx,
     );
+    await this.discounts.reconcile(tx, input.partyId, user.id, ip);
     return created.id;
   }
 
@@ -171,6 +174,10 @@ export class PaymentsService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, merged.partyId, user.id, ip);
+      if (merged.partyId !== existing.partyId) {
+        await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
+      }
     });
     return this.get(user, id);
   }
@@ -200,6 +207,7 @@ export class PaymentsService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
     });
   }
 

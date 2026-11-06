@@ -20,3 +20,4 @@ export * from './schemas/orders';
 export * from './schemas/pending';
 export * from './schemas/invoice-pdfs';
 export * from './schemas/payment-slips';
+export * from './schemas/discounts';

@@ -117,3 +117,8 @@ export function fromBusinessDateTime(local: LocalDateTimeString): Date {
 export function toBusinessDateTime(instant: Date): LocalDateTimeString {
   return new Date(instant.getTime() + KARACHI_OFFSET_MS).toISOString().slice(0, 16);
 }
+
+/** `date` plus `days` calendar days. */
+export function addDays(date: DateString, days: number): DateString {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}

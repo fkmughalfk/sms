@@ -22,6 +22,7 @@ import {
   type RateBasis,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { fromDbDate, toDbDate } from '../common/db-date';
 import type { Prisma } from '../generated/prisma/client';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -101,6 +102,7 @@ export class InvoicePdfsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly invoices: InvoicesService,
+    private readonly discounts: DiscountsService,
   ) {}
 
   // ── Upload ──
@@ -226,6 +228,9 @@ export class InvoicePdfsService {
           l.allocate.map((a) => ({ ...a, invoiceLineId: lineId.get(i + 1)! })),
         );
         if (allocations.length) await tx.orderAllocation.createMany({ data: allocations });
+        // The orders' prompt-payment discount travels with the delivered bags.
+        await this.discounts.applyInvoiceDiscount(tx, invoiceId);
+        await this.discounts.reconcile(tx, fresh.party!.id, user.id, ip);
         await this.remember(tx, user, parsed, resolution, fresh);
         await tx.pdfImport.update({
           where: { id },

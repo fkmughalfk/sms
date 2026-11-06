@@ -26,6 +26,7 @@ import {
   type BulkResult,
 } from '@sms/shared';
 import { AuditService } from '../audit/audit.service';
+import { DiscountsService } from '../discounts/discounts.service';
 import { runBulk } from '../common/bulk';
 import { invoiceScope } from '../common/data-scope';
 import { dateRangeWhere } from '../common/db-date';
@@ -130,6 +131,7 @@ export class InvoicesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
+    private readonly discounts: DiscountsService,
   ) {}
 
   // ── Queries ──
@@ -339,6 +341,7 @@ export class InvoicesService {
       },
       tx,
     );
+    await this.discounts.reconcile(tx, input.partyId, user.id, ip);
     return created.id;
   }
 
@@ -392,6 +395,10 @@ export class InvoicesService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, input.partyId, user.id, ip);
+      if (input.partyId !== existing.partyId) {
+        await this.discounts.reconcile(tx, existing.partyId, user.id, ip);
+      }
     });
     return this.get(user, id);
   }
@@ -443,6 +450,7 @@ export class InvoicesService {
         },
         tx,
       );
+      await this.discounts.reconcile(tx, inv.partyId, user.id, ip);
     });
   }
 

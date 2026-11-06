@@ -21,6 +21,7 @@ export const AUDIT_ENTITIES = [
   'OrderImport',
   'InvoicePdf',
   'PaymentSlip',
+  'DiscountCredit',
 ] as const;
 
 /** `GET /audit` — filter by user, entity, action and date (spec §5.9). */

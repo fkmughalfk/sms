@@ -8,6 +8,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { PermissionsGuard } from './common/permissions.guard';
 import { validateEnv } from './config/env';
+import { DiscountsModule } from './discounts/discounts.module';
 import { HealthModule } from './health/health.module';
 import { ImportModule } from './import/import.module';
 import { InvoicePdfsModule } from './invoice-pdfs/invoice-pdfs.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module';
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     PrismaModule,
     AuditModule,
+    DiscountsModule,
     SettingsModule,
     AuthModule,
     UsersModule,

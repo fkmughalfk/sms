@@ -94,23 +94,24 @@ model City {
 }
 
 model Party {
-  id             String       @id @default(cuid())
-  name           String       @unique @db.Citext
-  cityId         String?
-  city           City?        @relation(fields: [cityId], references: [id])
-  salespersonId  String? // default ASM, pre-fills new invoices
-  salesperson    Salesperson? @relation(fields: [salespersonId], references: [id])
-  phone          String?
-  openingBalance Decimal      @default(0) @db.Decimal(18, 2)
-  creditDays     Int? // null → Setting.defaultCreditDays
-  creditLimit    Decimal?     @db.Decimal(18, 2) // null → no limit (warn only)
-  isActive       Boolean      @default(true)
-  subParties     SubParty[]
-  invoices       Invoice[]
-  payments       Payment[]
-  orders         Order[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id              String           @id @default(cuid())
+  name            String           @unique @db.Citext
+  cityId          String?
+  city            City?            @relation(fields: [cityId], references: [id])
+  salespersonId   String? // default ASM, pre-fills new invoices
+  salesperson     Salesperson?     @relation(fields: [salespersonId], references: [id])
+  phone           String?
+  openingBalance  Decimal          @default(0) @db.Decimal(18, 2)
+  creditDays      Int? // null → Setting.defaultCreditDays
+  creditLimit     Decimal?         @db.Decimal(18, 2) // null → no limit (warn only)
+  isActive        Boolean          @default(true)
+  subParties      SubParty[]
+  invoices        Invoice[]
+  payments        Payment[]
+  orders          Order[]
+  discountCredits DiscountCredit[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model SubParty {
@@ -145,17 +146,17 @@ model Bank {
 }
 
 model Invoice {
-  id              String        @id @default(cuid())
-  invoiceNo       Int           @unique
-  invoiceDate     DateTime      @db.Date
+  id              String          @id @default(cuid())
+  invoiceNo       Int             @unique
+  invoiceDate     DateTime        @db.Date
   partyId         String
-  party           Party         @relation(fields: [partyId], references: [id])
+  party           Party           @relation(fields: [partyId], references: [id])
   cityId          String?
-  city            City?         @relation(fields: [cityId], references: [id])
+  city            City?           @relation(fields: [cityId], references: [id])
   subPartyId      String?
-  subParty        SubParty?     @relation(fields: [subPartyId], references: [id])
+  subParty        SubParty?       @relation(fields: [subPartyId], references: [id])
   salespersonId   String?
-  salesperson     Salesperson?  @relation(fields: [salespersonId], references: [id])
+  salesperson     Salesperson?    @relation(fields: [salespersonId], references: [id])
   remarks         String?
   // From invoice PDFs (phase O4); blank on invoices entered by hand.
   doNo            String?
@@ -163,17 +164,22 @@ model Invoice {
   dcNo            String?
   ogpNo           String?
   supplyNote      String? // the PDF's "Sub Party" text, e.g. "SUPPLY FROM U-2"
+  // Prompt-payment discount (phase O6): what this invoice earns if cleared within the
+  // party's credit days (from the orders it delivers), and those credit days, as recorded.
+  promptDiscount  Decimal         @default(0) @db.Decimal(18, 2)
+  creditDays      Int?
+  discountCredit  DiscountCredit?
   pdfImport       PdfImport?
-  totalPacks      Int           @default(0)
-  totalWeightKg   Decimal       @default(0) @db.Decimal(14, 3)
-  totalAmount     Decimal       @default(0) @db.Decimal(18, 2)
-  totalCommission Decimal       @default(0) @db.Decimal(18, 4)
+  totalPacks      Int             @default(0)
+  totalWeightKg   Decimal         @default(0) @db.Decimal(14, 3)
+  totalAmount     Decimal         @default(0) @db.Decimal(18, 2)
+  totalCommission Decimal         @default(0) @db.Decimal(18, 4)
   lines           InvoiceLine[]
   createdById     String
   updatedById     String?
   deletedAt       DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([invoiceDate])
   @@index([partyId])
@@ -457,4 +463,29 @@ model PaymentSlip {
 
   @@index([status])
   @@index([uploadedById])
+}
+
+enum DiscountStatus {
+  ACTIVE
+  REVERSED // by the office (with a reason); never re-credited automatically
+}
+
+/**
+ * A prompt-payment discount credited to the party's ledger (phase O6). Kept in step automatically.
+ */
+model DiscountCredit {
+  id             String         @id @default(cuid())
+  partyId        String
+  party          Party          @relation(fields: [partyId], references: [id])
+  invoiceId      String         @unique
+  invoice        Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount         Decimal        @db.Decimal(18, 2)
+  creditDate     DateTime       @db.Date
+  status         DiscountStatus @default(ACTIVE)
+  reversedReason String?
+  reversedById   String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([partyId])
 }

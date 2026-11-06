@@ -152,7 +152,7 @@ export type LedgerQuery = z.infer<typeof ledgerQuerySchema>;
 
 export const ledgerEntrySchema = z.object({
   date: z.string(),
-  type: z.enum(['INVOICE', 'PAYMENT']),
+  type: z.enum(['INVOICE', 'PAYMENT', 'DISCOUNT']),
   /** Invoice or payment id, for linking. */
   refId: z.string(),
   /** "Invoice #15" / "Slip 4411". */

@@ -97,7 +97,7 @@ export class RecoveryService {
     });
     if (!party) throw new NotFoundException('Party not found.');
 
-    const [invoices, recovered, settings] = await Promise.all([
+    const [invoices, recovered, discounts, settings] = await Promise.all([
       this.prisma.invoice.findMany({
         where: { partyId, deletedAt: null },
         select: { invoiceDate: true, totalAmount: true },
@@ -107,13 +107,18 @@ export class RecoveryService {
         _sum: { amount: true },
         _max: { paymentDate: true },
       }),
+      this.prisma.discountCredit.aggregate({
+        where: { partyId, status: 'ACTIVE' },
+        _sum: { amount: true },
+      }),
       this.settings.get(),
     ]);
     const debts = invoices.map(toDebt);
+    // Prompt-payment discounts credited to the ledger count like payments (phase O6).
     const p = partyPosition({
       openingBalance: party.openingBalance.toString(),
       sales: sum(debts.map((d) => d.amount)).toString(),
-      recovered: str(recovered._sum.amount),
+      recovered: dec(str(recovered._sum.amount)).plus(str(discounts._sum.amount)).toString(),
     });
     const credit = this.credit(party, debts, p.recovered.toString(), settings.defaultCreditDays);
     return positionView(party, p, recovered._max.paymentDate, credit);
@@ -142,7 +147,7 @@ export class RecoveryService {
 
   /** Recovery summary by party (Payments J20:N…), largest outstanding first. */
   async summary(query: RecoveryQuery): Promise<RecoverySummary> {
-    const [parties, invoices, payments, settings] = await Promise.all([
+    const [parties, invoices, payments, settings, discounts] = await Promise.all([
       this.prisma.party.findMany({
         where: { ...nameContains(query.search), ...(query.cityId ? { cityId: query.cityId } : {}) },
         select: {
@@ -166,7 +171,13 @@ export class RecoveryService {
         _max: { paymentDate: true },
       }),
       this.settings.get(),
+      this.prisma.discountCredit.groupBy({
+        by: ['partyId'],
+        where: { status: 'ACTIVE' },
+        _sum: { amount: true },
+      }),
     ]);
+    const discountBy = new Map(discounts.map((x) => [x.partyId, str(x._sum.amount)]));
     const debtsBy = new Map<string, InvoiceDebt[]>();
     for (const i of invoices) {
       const list = debtsBy.get(i.partyId) ?? [];
@@ -183,7 +194,9 @@ export class RecoveryService {
         const p = partyPosition({
           openingBalance: party.openingBalance.toString(),
           sales: sum(debts.map((d) => d.amount)).toString(),
-          recovered: str(paid?._sum.amount),
+          recovered: dec(str(paid?._sum.amount))
+            .plus(discountBy.get(party.id) ?? '0')
+            .toString(),
         });
         const credit = this.credit(
           party,
@@ -265,47 +278,64 @@ export class RecoveryService {
     const to = query.to ? toDbDate(query.to) : undefined;
     const inRange = { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) };
 
-    const [invoices, payments, salesBefore, paidBefore] = await Promise.all([
-      this.prisma.invoice.findMany({
-        where: { partyId, deletedAt: null, invoiceDate: inRange },
-        select: {
-          id: true,
-          invoiceNo: true,
-          invoiceDate: true,
-          totalAmount: true,
-          totalPacks: true,
-          remarks: true,
-        },
-      }),
-      this.prisma.payment.findMany({
-        where: { partyId, deletedAt: null, paymentDate: inRange },
-        select: {
-          id: true,
-          paymentDate: true,
-          slipNo: true,
-          bank: ref,
-          amount: true,
-          remarks: true,
-          createdAt: true,
-        },
-      }),
-      from
-        ? this.prisma.invoice.aggregate({
-            where: { partyId, deletedAt: null, invoiceDate: { lt: from } },
-            _sum: { totalAmount: true },
-          })
-        : null,
-      from
-        ? this.prisma.payment.aggregate({
-            where: { partyId, deletedAt: null, paymentDate: { lt: from } },
-            _sum: { amount: true },
-          })
-        : null,
-    ]);
+    const [invoices, payments, salesBefore, paidBefore, discounts, discountsBefore] =
+      await Promise.all([
+        this.prisma.invoice.findMany({
+          where: { partyId, deletedAt: null, invoiceDate: inRange },
+          select: {
+            id: true,
+            invoiceNo: true,
+            invoiceDate: true,
+            totalAmount: true,
+            totalPacks: true,
+            remarks: true,
+          },
+        }),
+        this.prisma.payment.findMany({
+          where: { partyId, deletedAt: null, paymentDate: inRange },
+          select: {
+            id: true,
+            paymentDate: true,
+            slipNo: true,
+            bank: ref,
+            amount: true,
+            remarks: true,
+            createdAt: true,
+          },
+        }),
+        from
+          ? this.prisma.invoice.aggregate({
+              where: { partyId, deletedAt: null, invoiceDate: { lt: from } },
+              _sum: { totalAmount: true },
+            })
+          : null,
+        from
+          ? this.prisma.payment.aggregate({
+              where: { partyId, deletedAt: null, paymentDate: { lt: from } },
+              _sum: { amount: true },
+            })
+          : null,
+        this.prisma.discountCredit.findMany({
+          where: { partyId, status: 'ACTIVE', creditDate: inRange },
+          select: {
+            id: true,
+            amount: true,
+            creditDate: true,
+            invoice: { select: { invoiceNo: true } },
+          },
+        }),
+        from
+          ? this.prisma.discountCredit.aggregate({
+              where: { partyId, status: 'ACTIVE', creditDate: { lt: from } },
+              _sum: { amount: true },
+            })
+          : null,
+      ]);
 
     const broughtForward = dec(party.openingBalance.toString())
       .plus(str(salesBefore?._sum.totalAmount))
-      .minus(str(paidBefore?._sum.amount));
+      .minus(str(paidBefore?._sum.amount))
+      .minus(str(discountsBefore?._sum.amount));
 
     const ledger = buildLedger(broughtForward, [
       ...invoices.map((i) => ({
@@ -325,6 +355,15 @@ export class RecoveryService {
         refId: p.id,
         reference: p.slipNo ? `Slip ${p.slipNo}` : 'Payment',
         description: [p.bank?.name, p.remarks].filter(Boolean).join(' · ') || null,
+      })),
+      ...discounts.map((x) => ({
+        date: fromDbDate(x.creditDate),
+        type: 'DISCOUNT' as const,
+        sortKey: `~${x.id}`, // after the payment that earned it
+        amount: x.amount.toString(),
+        refId: x.id,
+        reference: 'Prompt-payment discount',
+        description: `Invoice #${x.invoice.invoiceNo} paid within credit days`,
       })),
     ]);
 

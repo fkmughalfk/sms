@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Percent,
   type LucideIcon,
   ScrollText,
   Upload,
@@ -46,6 +47,13 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Recovery', href: '/recovery', icon: Receipt, permission: 'payment.read', ready: true },
   { label: 'Rate Lists', href: '/rates', icon: Tags, permission: 'masters.read', ready: true },
   { label: 'Reports', href: '/reports', icon: BarChart3, ready: true },
+  {
+    label: 'Commission',
+    href: '/commission',
+    icon: Percent,
+    permission: 'reports.viewAll',
+    ready: true,
+  },
   { label: 'Masters', href: '/masters', icon: Building2, permission: 'masters.read', ready: true },
   { label: 'Users', href: '/users', icon: Users, permission: 'users.manage', ready: true },
   {

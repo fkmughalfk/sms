@@ -1,6 +1,6 @@
 # Salesman Commission: Design (draft for review)
 
-> Status: **proposal, not built.** This changes the main app (commission today is per product/category, default 0.35%). Owner's answers recorded 2026-11-05.
+> Status: **built** on branch `claude/sku-extraction-translation-0ws2nh` (Commission page: report, rules, recalculation). Owner's answers recorded 2026-11-05.
 
 ## 1. The rules (from the owner, confirmed 2026-11-05)
 

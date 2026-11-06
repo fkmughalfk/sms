@@ -194,7 +194,7 @@ Rules carried over: snapshots, one transaction plus an `AuditLog` entry per writ
 | **O4. Invoice PDF reader** ✅ built                | Upload, parser, checks, aliases, Needs review, auto-post, order allocation, PDF storage | The sample invoice posts, and its lines reduce the right pending orders                  |
 | **O5. Payment slips** ✅ built (AI reading to add) | Upload + AI reading + confirm, duplicate guard, bank from account                       | Each sample slip reads to the right amount, date, bank and reference                     |
 | **O6. Prompt-payment discount** ✅ built           | Calc, automatic ledger credit, reversal                                                 | A 30-day party paying on day 25 earns exactly the order's discount; on day 31 it doesn't |
-| **C. Commission**                                  | See `docs/COMMISSION_SPEC.md`                                                           | Its own tests                                                                            |
+| **C. Commission** ✅ built                         | See `docs/COMMISSION_SPEC.md`                                                           | Its own tests                                                                            |
 
 ## 11. Still open (to be supplied later by the owner)
 

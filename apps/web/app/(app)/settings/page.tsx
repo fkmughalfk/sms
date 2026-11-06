@@ -51,6 +51,7 @@ interface FormValues {
   userEditWindowHours: string;
   defaultCreditDays: string;
   firstOrderNo: string;
+  ordersGoLiveDate: string;
 }
 
 const toForm = (s: Settings): FormValues => ({
@@ -62,6 +63,7 @@ const toForm = (s: Settings): FormValues => ({
   userEditWindowHours: String(s.userEditWindowHours),
   defaultCreditDays: String(s.defaultCreditDays),
   firstOrderNo: String(s.firstOrderNo),
+  ordersGoLiveDate: s.ordersGoLiveDate ?? '',
 });
 
 /** Spec §5.8 — SUPER_ADMIN only (the layout blocks other roles). */
@@ -107,6 +109,7 @@ function SettingsForm({ settings }: { settings: Settings }) {
       userEditWindowHours: v.userEditWindowHours,
       defaultCreditDays: v.defaultCreditDays,
       firstOrderNo: v.firstOrderNo,
+      ordersGoLiveDate: v.ordersGoLiveDate,
     };
     const parsed = updateSettingsSchema.safeParse(body);
     const map = new Map<string, string>();
@@ -244,10 +247,19 @@ function SettingsForm({ settings }: { settings: Settings }) {
             <FormField id="firstOrderNo" label="First order number" error={err('firstOrderNo')}>
               <Input id="firstOrderNo" inputMode="numeric" {...form.register('firstOrderNo')} />
             </FormField>
+            <FormField
+              id="ordersGoLiveDate"
+              label="Orders go-live date"
+              error={err('ordersGoLiveDate')}
+            >
+              <Input id="ordersGoLiveDate" type="date" {...form.register('ordersGoLiveDate')} />
+            </FormField>
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">
             New orders are numbered from here, or after the highest order number, whichever is
-            higher — e.g. 3211 to continue the paper order book.
+            higher — e.g. 3211 to continue the paper order book. Set the go-live date to the date of
+            the pending report you imported: invoice PDFs dated up to that day are recorded but
+            don&apos;t reduce the opening orders, which already count them.
           </p>
         </FormSection>
 

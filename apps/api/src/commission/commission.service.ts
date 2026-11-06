@@ -131,7 +131,13 @@ export class CommissionService {
         });
       }
       await tx.commissionShare.createMany({
-        data: rules.shares.map((s, i) => ({ ...s, sortOrder: i })),
+        data: rules.shares.map((s, i) => ({
+          earnerId: s.earnerId,
+          matchPartySalespersonId: s.matchPartySalespersonId ?? null,
+          matchSubPartyId: s.matchSubPartyId ?? null,
+          rate: s.rate,
+          sortOrder: i,
+        })),
       });
       await this.audit.log(
         { userId: user.id, action: 'UPDATE', entity: 'CommissionRules', before, after: rules, ip },

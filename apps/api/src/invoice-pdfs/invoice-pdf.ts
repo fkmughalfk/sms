@@ -2,6 +2,8 @@
 // The PDF holds real text, so it is read exactly: each piece of text with its position,
 // then fields by their labels and line items by the table's columns.
 
+import { pathToFileURL } from 'node:url';
+
 export interface TextItem {
   /** Page, 1-based. */
   p: number;
@@ -47,12 +49,18 @@ const importEsm = new Function('specifier', 'return import(specifier)') as (
   specifier: string,
 ) => Promise<unknown>;
 
+/**
+ * The resolved path is what's imported. Also, writing `require.resolve` here lets the Vercel
+ * bundler (file tracing) see pdfjs and ship it; it can't see through `importEsm`.
+ */
+const PDFJS = require.resolve('pdfjs-dist/legacy/build/pdf.mjs');
+
 /** Text runs of every page, with positions (pdfjs; works without a browser). */
 export async function extractTextItems(buffer: Buffer): Promise<TextItem[]> {
   // pdfjs is an ES module; this real import() survives compilers (e.g. ts-jest) that would
   // otherwise turn it into require().
   const pdfjs = (await importEsm(
-    'pdfjs-dist/legacy/build/pdf.mjs',
+    pathToFileURL(PDFJS).href,
   )) as typeof import('pdfjs-dist/legacy/build/pdf.mjs');
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
